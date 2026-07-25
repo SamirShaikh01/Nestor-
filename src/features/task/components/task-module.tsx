@@ -178,6 +178,146 @@ export function TaskModule({ selectedTaskId: propSelectedTaskId, onSelectTask }:
     );
   }
 
+
+  const renderTaskDetail = (task: Task) => (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className={`inline-block rounded-badge px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getCategoryColorBadge(task.category)}`}>
+            {task.category}
+          </span>
+          <h3 className="text-xl font-semibold text-text-primary mt-1">{task.title}</h3>
+          <p className="text-xs text-text-muted mt-1">Date: {task.date}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className="rounded-full border border-success/30 bg-success/10 px-3.5 py-1 text-sm font-semibold text-success shadow-sm">
+            {formatMinutes(task.durationMinutes)}
+          </span>
+          <span
+            className={`text-xs font-semibold px-2 py-0.5 rounded-badge uppercase ${
+              task.status === "completed"
+                ? "bg-success/20 text-success"
+                : task.status === "in-progress"
+                ? "bg-accent-cyan/20 text-accent-cyan"
+                : "bg-white/5 text-text-muted"
+            }`}
+          >
+            {task.status}
+          </span>
+        </div>
+      </div>
+
+      {task.description && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-soft mb-1">Description</p>
+          <p className="text-sm leading-6 text-text-muted">{task.description}</p>
+        </div>
+      )}
+
+      <div className="rounded-input border border-white/10 bg-white/5 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-text-primary">Session Timer</span>
+          {activeTimers[task.id] ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-danger font-medium animate-pulse">
+              <span className="h-2 w-2 rounded-full bg-danger"></span>
+              Tracking since {activeTimers[task.id]}
+            </span>
+          ) : (
+            <span className="text-xs text-text-muted">Timer idle</span>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          {task.status !== "completed" ? (
+            activeTimers[task.id] ? (
+              <>
+                <button
+                  onClick={() => pauseTimer(task.id)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-btn bg-warning/20 border border-warning/45 hover:bg-warning/30 py-2.5 text-sm font-medium text-warning transition-colors"
+                >
+                  <Pause size={14} /> Pause Timer
+                </button>
+                <button
+                  onClick={() => stopTimer(task.id)}
+                  className="inline-flex items-center justify-center rounded-btn bg-success/20 border border-success/45 hover:bg-success/30 px-4 py-2.5 text-sm font-medium text-success transition-colors"
+                  title="Finish Task"
+                >
+                  <Square size={14} fill="currentColor" /> Stop
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => startTimer(task.id)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-btn bg-accent-cyan/20 border border-accent-cyan/45 hover:bg-accent-cyan/30 py-2.5 text-sm font-medium text-accent-cyan transition-colors"
+                >
+                  <Play size={14} fill="currentColor" /> Start Timer
+                </button>
+                <button
+                  onClick={() => stopTimer(task.id)}
+                  className="inline-flex items-center justify-center rounded-btn bg-success/20 border border-success/45 hover:bg-success/30 px-3 py-2.5 text-sm font-medium text-success transition-colors"
+                >
+                  Complete
+                </button>
+              </>
+            )
+          ) : (
+            <div className="w-full text-center text-xs text-success bg-success/10 border border-success/20 py-2 rounded-btn font-medium">
+              ✓ Task Completed
+            </div>
+          )}
+        </div>
+      </div>
+
+      {task.notes && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-soft mb-1">Notes</p>
+          <p className="text-sm leading-6 text-text-muted bg-white/5 p-3 rounded-input border border-white/5 font-mono text-xs whitespace-pre-line">
+            {task.notes}
+          </p>
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-soft mb-2">Logged Sessions</p>
+        {task.sessions && task.sessions.length > 0 ? (
+          <ul className="space-y-2">
+            {task.sessions.map((session, idx) => (
+              <li key={idx} className="rounded-input border border-white/10 bg-white/5 px-3 py-2 text-sm text-text-muted">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock3 size={14} className="text-text-soft" />
+                    <span className="font-mono">{session}</span>
+                  </div>
+                  <span className="text-xs text-text-soft">
+                    Session {idx + 1}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-text-soft italic">No sessions logged yet. Use the timer or edit manually.</p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4">
+        <button
+          onClick={() => openEditModal(task)}
+          className="inline-flex items-center gap-2 rounded-btn bg-accent-cyan/10 hover:bg-accent-cyan/20 border border-accent-cyan/20 px-4 py-2.5 text-xs font-semibold text-accent-cyan transition-colors"
+        >
+          <Edit size={14} /> Edit Task
+        </button>
+        <button
+          onClick={() => handleDelete(task.id)}
+          className="inline-flex items-center gap-2 rounded-btn bg-danger/10 hover:bg-danger/20 border border-danger/20 px-4 py-2.5 text-xs font-semibold text-danger transition-colors"
+        >
+          <Trash2 size={14} /> Delete Task
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Task Header with Inline Date Filter */}
@@ -284,73 +424,82 @@ export function TaskModule({ selectedTaskId: propSelectedTaskId, onSelectTask }:
             const isTracking = activeTimers[task.id] !== undefined;
 
             return (
-              <button
+              <div
                 key={task.id}
-                type="button"
-                onClick={() => handleSelectTask(task.id)}
-                onDoubleClick={() => openEditModal(task)}
-                className={`w-full rounded-card border p-4 text-left shadow-soft transition-all duration-300 ease-in-out relative overflow-hidden select-none ${
+                className={`relative overflow-hidden rounded-card border transition-all duration-300 ease-in-out ${
                   isSelected
-                    ? "border-accent-cyan/50 bg-accent-cyan/15 dark:bg-accent-cyan/20"
-                    : "border-white/5 bg-card-bg hover:-translate-y-1 hover:border-accent-cyan/30 hover:bg-accent-cyan/5 dark:hover:bg-accent-cyan/10"
+                    ? "border-accent-purple/40 bg-card-bg shadow-[0_0_15px_rgba(168,85,247,0.25)] z-10"
+                    : "border-white/5 bg-card-bg shadow-soft hover:-translate-y-1 hover:border-accent-purple/30 hover:bg-accent-purple/5 dark:hover:bg-accent-purple/10"
                 }`}
               >
-                {/* Active Tracking Indicator Overlay Line */}
-                {isTracking && (
-                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-danger to-accent-purple animate-pulse" />
-                )}
+                <button
+                  type="button"
+                  onClick={() => handleSelectTask(task.id)}
+                  className="w-full p-4 text-left select-none outline-none"
+                >
+                  {/* Active Tracking Indicator Overlay Line */}
+                  {isTracking && (
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-danger to-accent-purple animate-pulse" />
+                  )}
 
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-text-primary">{task.title}</p>
-                      {isTracking && (
-                        <span className="flex h-2.5 w-2.5 relative">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-text-primary">{task.title}</p>
+                        {isTracking && (
+                          <span className="flex h-2.5 w-2.5 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-danger"></span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center flex-wrap gap-2 mt-1">
+                        <span className={`rounded-badge px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getCategoryColorBadge(task.category)}`}>
+                          {task.category}
                         </span>
-                      )}
+                        <span className={`text-xs ${isSelected ? "text-text-muted" : "text-text-soft"}`}>
+                          {task.date}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center flex-wrap gap-2 mt-1">
-                      <span className={`rounded-badge px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getCategoryColorBadge(task.category)}`}>
-                        {task.category}
-                      </span>
-                      <span className={`text-xs ${isSelected ? "text-text-muted" : "text-text-soft"}`}>
-                        {task.date}
-                      </span>
+                    <span
+                      className={`rounded-badge px-2.5 py-1 text-xs font-medium uppercase tracking-wider ${
+                        task.status === "completed"
+                          ? "bg-success/20 text-success border border-success/30"
+                          : task.status === "in-progress"
+                          ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
+                          : "bg-[#0f172a]/4 dark:bg-white/5 text-text-muted border border-white/10"
+                      }`}
+                    >
+                      {task.status}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {task.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className={`rounded-badge px-2.5 py-1 text-xs ${
+                            isSelected ? "bg-white/10 text-text-primary" : "bg-[#0f172a]/4 dark:bg-white/5 text-text-soft"
+                          }`}
+                        >
+                          #{tag}
+                        </span>
+                      ))}
                     </div>
+                    <span className="text-xs text-text-muted flex items-center gap-1 font-medium">
+                      <Clock3 size={12} /> {formatMinutes(task.durationMinutes)}
+                    </span>
                   </div>
-                  <span
-                    className={`rounded-badge px-2.5 py-1 text-xs font-medium uppercase tracking-wider ${
-                      task.status === "completed"
-                        ? "bg-success/20 text-success border border-success/30"
-                        : task.status === "in-progress"
-                        ? "bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30"
-                        : "bg-[#0f172a]/4 dark:bg-white/5 text-text-muted border border-white/10"
-                    }`}
-                  >
-                    {task.status}
-                  </span>
-                </div>
-                
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap gap-1.5">
-                    {task.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className={`rounded-badge px-2.5 py-1 text-xs ${
-                          isSelected ? "bg-white/10 text-text-primary" : "bg-[#0f172a]/4 dark:bg-white/5 text-text-soft"
-                        }`}
-                      >
-                        #{tag}
-                      </span>
-                    ))}
+                </button>
+                {/* Mobile Inline Detail View */}
+                {isSelected && (
+                  <div className="block lg:hidden border-t border-white/10 bg-black/10 dark:bg-white/5 p-4 animate-in slide-in-from-top-2">
+                    {renderTaskDetail(task)}
                   </div>
-                  <span className="text-xs text-text-muted flex items-center gap-1 font-medium">
-                    <Clock3 size={12} /> {formatMinutes(task.durationMinutes)}
-                  </span>
-                </div>
-              </button>
+                )}
+              </div>
             );
           })}
           
@@ -384,146 +533,9 @@ export function TaskModule({ selectedTaskId: propSelectedTaskId, onSelectTask }:
           )}
         </div>
 
-        {/* Right Side Detail Sidebar */}
-        <div className="rounded-card border border-white/5 bg-card-bg p-5 shadow-soft backdrop-blur-[18px] self-start">
-          {selectedTask ? (
-            <div className="space-y-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <span className={`inline-block rounded-badge px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${getCategoryColorBadge(selectedTask.category)}`}>
-                    {selectedTask.category}
-                  </span>
-                  <h3 className="text-xl font-semibold text-text-primary mt-1">{selectedTask.title}</h3>
-                  <p className="text-xs text-text-muted mt-1">Date: {selectedTask.date}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5">
-                  <span className="rounded-full border border-success/30 bg-success/10 px-3.5 py-1 text-sm font-semibold text-success shadow-sm">
-                    {formatMinutes(selectedTask.durationMinutes)}
-                  </span>
-                  <span
-                    className={`text-xs font-semibold px-2 py-0.5 rounded-badge uppercase ${
-                      selectedTask.status === "completed"
-                        ? "bg-success/20 text-success"
-                        : selectedTask.status === "in-progress"
-                        ? "bg-accent-cyan/20 text-accent-cyan"
-                        : "bg-white/5 text-text-muted"
-                    }`}
-                  >
-                    {selectedTask.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Description */}
-              {selectedTask.description && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-soft mb-1">Description</p>
-                  <p className="text-sm leading-6 text-text-muted">{selectedTask.description}</p>
-                </div>
-              )}
-
-              {/* Active Timer Control Panel */}
-              <div className="rounded-input border border-white/10 bg-white/5 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-text-primary">Session Timer</span>
-                  {activeTimers[selectedTask.id] ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-danger font-medium animate-pulse">
-                      <span className="h-2 w-2 rounded-full bg-danger"></span>
-                      Tracking since {activeTimers[selectedTask.id]}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-text-muted">Timer idle</span>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  {selectedTask.status !== "completed" ? (
-                    activeTimers[selectedTask.id] ? (
-                      <>
-                        <button
-                          onClick={() => pauseTimer(selectedTask.id)}
-                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-btn bg-warning/20 border border-warning/45 hover:bg-warning/30 py-2.5 text-sm font-medium text-warning transition-colors"
-                        >
-                          <Pause size={14} /> Pause Timer
-                        </button>
-                        <button
-                          onClick={() => stopTimer(selectedTask.id)}
-                          className="inline-flex items-center justify-center rounded-btn bg-success/20 border border-success/45 hover:bg-success/30 px-4 py-2.5 text-sm font-medium text-success transition-colors"
-                          title="Finish Task"
-                        >
-                          <Square size={14} fill="currentColor" /> Stop
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => startTimer(selectedTask.id)}
-                          className="flex-1 inline-flex items-center justify-center gap-2 rounded-btn bg-accent-cyan/20 border border-accent-cyan/45 hover:bg-accent-cyan/30 py-2.5 text-sm font-medium text-accent-cyan transition-colors"
-                        >
-                          <Play size={14} fill="currentColor" /> Start Timer
-                        </button>
-                        <button
-                          onClick={() => stopTimer(selectedTask.id)}
-                          className="inline-flex items-center justify-center rounded-btn bg-success/20 border border-success/45 hover:bg-success/30 px-3 py-2.5 text-sm font-medium text-success transition-colors"
-                        >
-                          Complete
-                        </button>
-                      </>
-                    )
-                  ) : (
-                    <div className="w-full text-center text-xs text-success bg-success/10 border border-success/20 py-2 rounded-btn font-medium">
-                      ✓ Task Completed
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Notes */}
-              {selectedTask.notes && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-soft mb-1">Notes</p>
-                  <p className="text-sm leading-6 text-text-muted bg-white/5 p-3 rounded-input border border-white/5 font-mono text-xs whitespace-pre-line">
-                    {selectedTask.notes}
-                  </p>
-                </div>
-              )}
-
-              {/* Sessions */}
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-text-soft mb-2">Logged Sessions</p>
-                {selectedTask.sessions && selectedTask.sessions.length > 0 ? (
-                  <ul className="space-y-2">
-                    {selectedTask.sessions.map((session, idx) => (
-                      <li key={idx} className="rounded-input border border-white/10 bg-white/5 px-3 py-2 text-sm text-text-muted">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Clock3 size={14} className="text-text-soft" />
-                            <span className="font-mono">{session}</span>
-                          </div>
-                          {/* Duration helper */}
-                          <span className="text-xs text-text-soft">
-                            Session {idx + 1}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-text-soft italic">No sessions logged yet. Use the timer or edit manually.</p>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4">
-                <button
-                  onClick={() => handleDelete(selectedTask.id)}
-                  className="inline-flex items-center gap-2 rounded-btn bg-danger/10 hover:bg-danger/20 border border-danger/20 px-4 py-2.5 text-xs font-semibold text-danger transition-colors"
-                >
-                  <Trash2 size={14} /> Delete Task
-                </button>
-              </div>
-            </div>
-          ) : (
+        {/* Right Side Detail Sidebar (Desktop Only) */}
+        <div className="hidden lg:block rounded-card border border-white/5 bg-card-bg p-5 shadow-soft backdrop-blur-[18px] self-start">
+          {selectedTask ? renderTaskDetail(selectedTask) : (
             <p className="text-sm text-text-muted text-center py-8">Select a task to see its detail view.</p>
           )}
         </div>

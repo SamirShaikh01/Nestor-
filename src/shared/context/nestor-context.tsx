@@ -344,8 +344,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
       console.error("Error loading user profile:", e);
     }
   };
-  
-
 
   // Font family state
   const [fontFamily, setFontFamilyState] = useState<string>(() => {
@@ -428,39 +426,11 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   const [shiftPresets, setShiftPresets] = useState<ShiftPreset[]>(initialShiftPresets);
 
   // Password Vault States
-  const [vaultProducts, setVaultProducts] = useState<VaultProductGroup[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_vault_products");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return initialVaultProducts; }
-      } else {
-        localStorage.setItem("nestor_vault_products", JSON.stringify(initialVaultProducts));
-        return initialVaultProducts;
-      }
-    }
-    return initialVaultProducts;
-  });
+  const [vaultProducts, setVaultProducts] = useState<VaultProductGroup[]>(initialVaultProducts);
 
-  const [personalVault, setPersonalVault] = useState<PersonalVaultEntry[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_personal_vault");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return initialPersonalVault; }
-      } else {
-        localStorage.setItem("nestor_personal_vault", JSON.stringify(initialPersonalVault));
-        return initialPersonalVault;
-      }
-    }
-    return initialPersonalVault;
-  });
+  const [personalVault, setPersonalVault] = useState<PersonalVaultEntry[]>(initialPersonalVault);
 
-  const [masterPassword, setMasterPasswordState] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_master_password");
-      if (saved) return saved;
-    }
-    return "1234";
-  });
+  const [masterPassword, setMasterPasswordState] = useState<string>("1234");
 
   const updateUsername = (name: string) => {
     const trimmed = name.trim();
@@ -1135,8 +1105,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
     );
   };
 
-
-
   const insertTicketLocal = (ticket: Ticket) => {
     const exists = tickets.some((t) => t.id.toLowerCase() === ticket.id.toLowerCase());
     if (exists) {
@@ -1736,7 +1704,7 @@ export function NestorProvider({ children }: { children: ReactNode }) {
         updateMasterPassword: (newPin) => {
           setMasterPasswordState(newPin);
           if (typeof window !== "undefined") {
-            localStorage.setItem("nestor_master_password", newPin);
+            
           }
         },
         addVaultProductGroup: async (category, productName) => {

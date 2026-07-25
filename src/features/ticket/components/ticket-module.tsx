@@ -189,6 +189,133 @@ export function TicketModule({ selectedTicketId: propSelectedTicketId, onSelectT
     );
   }
 
+
+  const renderTicketDetail = (ticket: Ticket) => (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-3 border-b border-white/5 pb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-badge bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/20">
+              {ticket.id}
+            </span>
+            <span className="text-xs text-text-soft flex items-center gap-1">
+              <Calendar size={12} /> {ticket.date}
+            </span>
+          </div>
+          <h3 className="text-lg font-semibold text-text-primary mt-2">{ticket.subject}</h3>
+        </div>
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <span
+            className={`rounded-badge px-2.5 py-1 text-xs font-bold uppercase ${
+              ticket.status === "Closed" || ticket.status === "Resolved"
+                ? "bg-success/20 text-success"
+                : "bg-warning/20 text-warning"
+            }`}
+          >
+            {ticket.status}
+          </span>
+          <span className="text-xs text-text-muted">
+            Priority {ticket.priority}
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-input border border-white/5 bg-white/5 p-3.5 space-y-2">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-soft">
+          <User size={13} /> Client Information
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <p className="text-xs text-text-soft">Client Name</p>
+            <p className="font-semibold text-text-primary mt-0.5">{ticket.customerName}</p>
+          </div>
+          <div>
+            <p className="text-xs text-text-soft">Client ID</p>
+            <p className="font-semibold text-text-primary mt-0.5">{ticket.customerId}</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-soft mb-1.5">
+          <Info size={13} /> Description Details
+        </div>
+        <p className="text-sm leading-6 text-text-muted bg-white/5 border border-white/5 p-3 rounded-input whitespace-pre-wrap">
+          {ticket.details}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <p className="text-xs text-text-soft font-semibold uppercase">Product</p>
+          <p className="font-semibold text-text-primary mt-1">{ticket.product}</p>
+        </div>
+        <div>
+          <p className="text-xs text-text-soft font-semibold uppercase">Raised By</p>
+          <p className="font-semibold text-text-primary mt-1">{ticket.raisedBy}</p>
+        </div>
+      </div>
+
+      {(() => {
+        const logs = ticket.workLogs || [];
+        if (logs.length === 0 && !ticket.myWork) return null;
+        return (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-text-soft mb-3 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-accent-cyan animate-pulse" />
+              Work Log
+              {logs.length > 0 && (
+                <span className="rounded-badge bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/20 px-1.5 py-0.5 text-[10px] font-bold">
+                  {logs.length} {logs.length === 1 ? "entry" : "entries"}
+                </span>
+              )}
+            </p>
+            <div className="space-y-2">
+              {logs.length > 0 ? (
+                logs.map((log) => (
+                  <div key={log.id} className="rounded-input border border-white/5 bg-white/[0.03] p-3 text-xs">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-accent-cyan">{log.authorName}</span>
+                      <span className="text-text-muted font-mono">{log.date}</span>
+                    </div>
+                    {log.myWork && <p className="text-text-muted leading-5 whitespace-pre-wrap mb-1">{log.myWork}</p>}
+                    {log.myNote && <p className="text-text-soft italic leading-5 whitespace-pre-wrap border-t border-white/5 pt-1 mt-1">Note: {log.myNote}</p>}
+                  </div>
+                ))
+              ) : (
+                ticket.myWork && (
+                  <div className="rounded-input border border-white/5 bg-white/[0.03] p-3 text-xs">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-bold text-accent-cyan">{ticket.raisedBy}</span>
+                      <span className="text-text-muted font-mono">{ticket.date}</span>
+                    </div>
+                    <p className="text-text-muted leading-5 whitespace-pre-wrap">{ticket.myWork}</p>
+                    {ticket.myNote && <p className="text-text-soft italic leading-5 whitespace-pre-wrap border-t border-white/5 pt-1 mt-1">Note: {ticket.myNote}</p>}
+                  </div>
+                )
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4">
+        <button
+          onClick={() => openEditModal(ticket)}
+          className="inline-flex items-center gap-2 rounded-btn bg-accent-cyan/10 hover:bg-accent-cyan/20 border border-accent-cyan/20 px-4 py-2.5 text-xs font-semibold text-accent-cyan transition-colors"
+        >
+          <Edit size={14} /> Edit Ticket
+        </button>
+        <button
+          onClick={() => handleDelete(ticket.id)}
+          className="inline-flex items-center gap-2 rounded-btn bg-danger/10 hover:bg-danger/20 border border-danger/20 px-4 py-2.5 text-xs font-semibold text-danger transition-colors"
+        >
+          <Trash2 size={14} /> Delete Ticket
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Ticket Header with Inline Date Filter */}
@@ -308,59 +435,68 @@ export function TicketModule({ selectedTicketId: propSelectedTicketId, onSelectT
             const isSelected = selectedTicket?.id === ticket.id;
 
             return (
-              <button
+              <div
                 key={ticket.id}
-                type="button"
-                onClick={() => handleSelectTicket(ticket.id)}
-                onDoubleClick={() => openEditModal(ticket)}
-                className={`w-full rounded-card border p-4 text-left shadow-soft transition-all duration-300 ease-in-out relative overflow-hidden select-none ${
+                className={`relative overflow-hidden rounded-card border transition-all duration-300 ease-in-out ${
                   isSelected
-                    ? "border-accent-cyan/50 bg-accent-cyan/15 dark:bg-accent-cyan/20"
-                    : "border-white/5 bg-card-bg hover:-translate-y-1 hover:border-accent-cyan/30 hover:bg-accent-cyan/5 dark:hover:bg-accent-cyan/10"
+                    ? "border-accent-purple/40 bg-card-bg shadow-[0_0_15px_rgba(168,85,247,0.25)] z-10"
+                    : "border-white/5 bg-card-bg shadow-soft hover:-translate-y-1 hover:border-accent-purple/30 hover:bg-accent-purple/5 dark:hover:bg-accent-purple/10"
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-badge bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/20">
-                        {ticket.id}
-                      </span>
-                      <p className="text-sm font-semibold text-text-primary line-clamp-1">{ticket.subject}</p>
+                <button
+                  type="button"
+                  onClick={() => handleSelectTicket(ticket.id)}
+                  className="w-full p-4 text-left select-none outline-none"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-badge bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/20">
+                          {ticket.id}
+                        </span>
+                        <p className="text-sm font-semibold text-text-primary line-clamp-1">{ticket.subject}</p>
+                      </div>
+                      <p className={`mt-1 text-sm ${isSelected ? "text-text-muted" : "text-text-soft"}`}>
+                        {ticket.customerName} • {ticket.product} • {ticket.date}
+                      </p>
                     </div>
-                    <p className={`mt-1 text-sm ${isSelected ? "text-text-muted" : "text-text-soft"}`}>
-                      {ticket.customerName} • {ticket.product} • {ticket.date}
-                    </p>
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <span
+                        className={`rounded-badge px-2.5 py-1 text-xs font-semibold uppercase tracking-wider ${
+                          ticket.status === "Closed" || ticket.status === "Resolved"
+                            ? "bg-success/20 text-success border border-success/30"
+                            : ticket.status === "Open"
+                            ? "bg-danger/20 text-danger border border-danger/30"
+                            : "bg-warning/20 text-warning border border-warning/30"
+                        }`}
+                      >
+                        {ticket.status}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="text-xs text-text-muted">
+                      Raised by: <span className="text-text-soft font-medium">{ticket.raisedBy}</span>
+                    </span>
                     <span
-                      className={`rounded-badge px-2.5 py-1 text-xs font-semibold uppercase tracking-wider ${
-                        ticket.status === "Closed" || ticket.status === "Resolved"
-                          ? "bg-success/20 text-success border border-success/30"
-                          : ticket.status === "Open"
-                          ? "bg-danger/20 text-danger border border-danger/30"
-                          : "bg-warning/20 text-warning border border-warning/30"
+                      className={`rounded-badge px-2 py-0.5 text-xs font-bold ${
+                        ticket.priority === "P1" || ticket.priority === "P2"
+                          ? "bg-danger/25 text-danger border border-danger/30"
+                          : "bg-[#0f172a]/4 dark:bg-white/5 text-text-muted border border-white/10"
                       }`}
                     >
-                      {ticket.status}
+                      Priority {ticket.priority}
                     </span>
                   </div>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-xs text-text-muted">
-                    Raised by: <span className="text-text-soft font-medium">{ticket.raisedBy}</span>
-                  </span>
-                  <span
-                    className={`rounded-badge px-2 py-0.5 text-xs font-bold ${
-                      ticket.priority === "P1" || ticket.priority === "P2"
-                        ? "bg-danger/25 text-danger border border-danger/30"
-                        : "bg-[#0f172a]/4 dark:bg-white/5 text-text-muted border border-white/10"
-                    }`}
-                  >
-                    Priority {ticket.priority}
-                  </span>
-                </div>
-              </button>
+                </button>
+                {/* Mobile Inline Detail View */}
+                {isSelected && (
+                  <div className="block lg:hidden border-t border-white/10 bg-black/10 dark:bg-white/5 p-4 animate-in slide-in-from-top-2">
+                    {renderTicketDetail(ticket)}
+                  </div>
+                )}
+              </div>
             );
           })}
 
@@ -394,147 +530,9 @@ export function TicketModule({ selectedTicketId: propSelectedTicketId, onSelectT
           )}
         </div>
 
-        {/* Right Side Detail Sidebar */}
-        <div className="rounded-card border border-white/5 bg-card-bg p-5 shadow-soft backdrop-blur-[18px] self-start space-y-6">
-          {selectedTicket ? (
-            <div className="space-y-6">
-              <div className="flex items-start justify-between gap-3 border-b border-white/5 pb-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-badge bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/20">
-                      {selectedTicket.id}
-                    </span>
-                    <span className="text-xs text-text-soft flex items-center gap-1">
-                      <Calendar size={12} /> {selectedTicket.date}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-semibold text-text-primary mt-2">{selectedTicket.subject}</h3>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                  <span
-                    className={`rounded-badge px-2.5 py-1 text-xs font-bold uppercase ${
-                      selectedTicket.status === "Closed" || selectedTicket.status === "Resolved"
-                        ? "bg-success/20 text-success"
-                        : "bg-warning/20 text-warning"
-                    }`}
-                  >
-                    {selectedTicket.status}
-                  </span>
-                  <span className="text-xs text-text-muted">
-                    Priority {selectedTicket.priority}
-                  </span>
-                </div>
-              </div>
-
-              {/* Client Info Card */}
-              <div className="rounded-input border border-white/5 bg-white/5 p-3.5 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-soft">
-                  <User size={13} /> Client Information
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="text-xs text-text-soft">Client Name</p>
-                    <p className="font-semibold text-text-primary mt-0.5">{selectedTicket.customerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-soft">Client ID</p>
-                    <p className="font-semibold text-text-primary mt-0.5">{selectedTicket.customerId}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Details / Description */}
-              <div>
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-soft mb-1.5">
-                  <Info size={13} /> Description Details
-                </div>
-                <p className="text-sm leading-6 text-text-muted bg-white/5 border border-white/5 p-3 rounded-input whitespace-pre-wrap">
-                  {selectedTicket.details}
-                </p>
-              </div>
-
-              {/* Product & Raised By */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-xs text-text-soft font-semibold uppercase">Product</p>
-                  <p className="font-semibold text-text-primary mt-1">{selectedTicket.product}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-soft font-semibold uppercase">Raised By</p>
-                  <p className="font-semibold text-text-primary mt-1">{selectedTicket.raisedBy}</p>
-                </div>
-              </div>
-
-              {/* Work Log Timeline */}
-              {(() => {
-                const logs = selectedTicket.workLogs || [];
-                // Also check legacy myWork field as a final fallback
-                if (logs.length === 0 && !selectedTicket.myWork) return null;
-                return (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-text-soft mb-3 flex items-center gap-2">
-                      <span className="inline-block w-2 h-2 rounded-full bg-accent-cyan animate-pulse" />
-                      Work Log
-                      {logs.length > 0 && (
-                        <span className="rounded-badge bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/20 px-1.5 py-0.5 text-[10px] font-bold">
-                          {logs.length} {logs.length === 1 ? "entry" : "entries"}
-                        </span>
-                      )}
-                    </p>
-                    <div className="space-y-2">
-                      {logs.length > 0 ? (
-                        logs.map((log) => (
-                          <div
-                            key={log.id}
-                            className="rounded-input border border-white/5 bg-white/[0.03] p-3 text-xs"
-                          >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="font-bold text-accent-cyan">{log.authorName}</span>
-                              <span className="text-text-muted font-mono">{log.date}</span>
-                            </div>
-                            {log.myWork && (
-                              <p className="text-text-muted leading-5 whitespace-pre-wrap mb-1">{log.myWork}</p>
-                            )}
-                            {log.myNote && (
-                              <p className="text-text-soft italic leading-5 whitespace-pre-wrap border-t border-white/5 pt-1 mt-1">
-                                Note: {log.myNote}
-                              </p>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        /* Legacy fallback for tickets without work log records */
-                        selectedTicket.myWork && (
-                          <div className="rounded-input border border-white/5 bg-white/[0.03] p-3 text-xs">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="font-bold text-accent-cyan">{selectedTicket.raisedBy}</span>
-                              <span className="text-text-muted font-mono">{selectedTicket.date}</span>
-                            </div>
-                            <p className="text-text-muted leading-5 whitespace-pre-wrap">{selectedTicket.myWork}</p>
-                            {selectedTicket.myNote && (
-                              <p className="text-text-soft italic leading-5 whitespace-pre-wrap border-t border-white/5 pt-1 mt-1">
-                                Note: {selectedTicket.myNote}
-                              </p>
-                            )}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Actions Footer */}
-              <div className="flex items-center justify-end gap-3 border-t border-white/5 pt-4">
-                <button
-                  onClick={() => handleDelete(selectedTicket.id)}
-                  className="inline-flex items-center gap-2 rounded-btn bg-danger/10 hover:bg-danger/20 border border-danger/20 px-4 py-2.5 text-xs font-semibold text-danger transition-colors"
-                >
-                  <Trash2 size={14} /> Delete Ticket
-                </button>
-              </div>
-            </div>
-          ) : (
+        {/* Right Side Detail Sidebar (Desktop Only) */}
+        <div className="hidden lg:block rounded-card border border-white/5 bg-card-bg p-5 shadow-soft backdrop-blur-[18px] self-start space-y-6">
+          {selectedTicket ? renderTicketDetail(selectedTicket) : (
             <p className="text-sm text-text-muted text-center py-8">Select a ticket to see its detail view.</p>
           )}
         </div>

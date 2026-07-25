@@ -125,7 +125,7 @@ export function AppShell({ children, activeView, onViewChange }: AppShellProps) 
     <div className="min-h-screen text-text-secondary">
 
       {/* ── TABLET / MOBILE: Top Navbar ── */}
-      <div className="lg:hidden sticky top-0 z-30 flex flex-col gap-0">
+      <div className="lg:hidden sticky top-0 z-50 flex flex-col gap-0 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
         {/* Brand bar */}
         <div className="flex items-center justify-between px-4 py-2 backdrop-blur-[20px] border-b dark:border-white/5 dark:bg-sidebar-bg/95">
           {/* Brand */}
