@@ -388,39 +388,9 @@ export function NestorProvider({ children }: { children: ReactNode }) {
       root.style.colorScheme = "dark";
     }
   }, []);
-  const [products, setProducts] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_products");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return DEFAULT_PRODUCTS;
-        }
-      } else {
-        localStorage.setItem("nestor_products", JSON.stringify(DEFAULT_PRODUCTS));
-        return DEFAULT_PRODUCTS;
-      }
-    }
-    return DEFAULT_PRODUCTS;
-  });
+  const [products, setProducts] = useState<string[]>(DEFAULT_PRODUCTS);
 
-  const [categories, setCategories] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_categories");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return DEFAULT_CATEGORIES;
-        }
-      } else {
-        localStorage.setItem("nestor_categories", JSON.stringify(DEFAULT_CATEGORIES));
-        return DEFAULT_CATEGORIES;
-      }
-    }
-    return DEFAULT_CATEGORIES;
-  });
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
 
   const addCategory = (categoryName: string) => {
     const trimmed = categoryName.trim();
@@ -428,7 +398,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
     setCategories((prev) => {
       if (prev.includes(trimmed)) return prev;
       const updated = [...prev, trimmed];
-      localStorage.setItem("nestor_categories", JSON.stringify(updated));
       return updated;
     });
   };
@@ -436,117 +405,27 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   const removeCategory = (categoryName: string) => {
     setCategories((prev) => {
       const updated = prev.filter((c) => c !== categoryName);
-      localStorage.setItem("nestor_categories", JSON.stringify(updated));
       return updated;
     });
   };
 
-  const [username, setUsername] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_username");
-      if (saved) {
-        return saved;
-      } else {
-        localStorage.setItem("nestor_username", "Boss");
-        return "Boss";
-      }
-    }
-    return "Boss";
-  });
+  const [username, setUsername] = useState<string>("Boss");
 
   // OEM Configurable Dropdown Registries
-  const [productCategories, setProductCategories] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_product_categories");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return DEFAULT_PRODUCT_CATEGORIES; }
-      } else {
-        localStorage.setItem("nestor_product_categories", JSON.stringify(DEFAULT_PRODUCT_CATEGORIES));
-        return DEFAULT_PRODUCT_CATEGORIES;
-      }
-    }
-    return DEFAULT_PRODUCT_CATEGORIES;
-  });
+  const [productCategories, setProductCategories] = useState<string[]>(DEFAULT_PRODUCT_CATEGORIES);
 
-  const [caseTypes, setCaseTypes] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_case_types");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return DEFAULT_CASE_TYPES; }
-      } else {
-        localStorage.setItem("nestor_case_types", JSON.stringify(DEFAULT_CASE_TYPES));
-        return DEFAULT_CASE_TYPES;
-      }
-    }
-    return DEFAULT_CASE_TYPES;
-  });
+  const [caseTypes, setCaseTypes] = useState<string[]>(DEFAULT_CASE_TYPES);
 
-  const [statusUpdates, setStatusUpdates] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_status_updates");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return DEFAULT_STATUS_UPDATES; }
-      } else {
-        localStorage.setItem("nestor_status_updates", JSON.stringify(DEFAULT_STATUS_UPDATES));
-        return DEFAULT_STATUS_UPDATES;
-      }
-    }
-    return DEFAULT_STATUS_UPDATES;
-  });
+  const [statusUpdates, setStatusUpdates] = useState<string[]>(DEFAULT_STATUS_UPDATES);
 
-  const [teamMembers, setTeamMembers] = useState<string[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_team_members");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return DEFAULT_TEAM_MEMBERS; }
-      } else {
-        localStorage.setItem("nestor_team_members", JSON.stringify(DEFAULT_TEAM_MEMBERS));
-        return DEFAULT_TEAM_MEMBERS;
-      }
-    }
-    return DEFAULT_TEAM_MEMBERS;
-  });
+  const [teamMembers, setTeamMembers] = useState<string[]>(DEFAULT_TEAM_MEMBERS);
 
   // Centralized Shift Roster states
-  const [rosterMembers, setRosterMembers] = useState<RosterMember[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_roster_members");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return initialRosterMembers; }
-      } else {
-        localStorage.setItem("nestor_roster_members", JSON.stringify(initialRosterMembers));
-        return initialRosterMembers;
-      }
-    }
-    return initialRosterMembers;
-  });
+  const [rosterMembers, setRosterMembers] = useState<RosterMember[]>(initialRosterMembers);
 
-  const [rosterAssignments, setRosterAssignments] = useState<Record<string, string>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_roster_assignments");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return generateInitialAssignments(); }
-      } else {
-        const initial = generateInitialAssignments();
-        localStorage.setItem("nestor_roster_assignments", JSON.stringify(initial));
-        return initial;
-      }
-    }
-    return generateInitialAssignments();
-  });
+  const [rosterAssignments, setRosterAssignments] = useState<Record<string, string>>(generateInitialAssignments());
 
-  const [shiftPresets, setShiftPresets] = useState<ShiftPreset[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_shift_presets");
-      if (saved) {
-        try { return JSON.parse(saved); } catch { return initialShiftPresets; }
-      } else {
-        localStorage.setItem("nestor_shift_presets", JSON.stringify(initialShiftPresets));
-        return initialShiftPresets;
-      }
-    }
-    return initialShiftPresets;
-  });
+  const [shiftPresets, setShiftPresets] = useState<ShiftPreset[]>(initialShiftPresets);
 
   // Password Vault States
   const [vaultProducts, setVaultProducts] = useState<VaultProductGroup[]>(() => {
@@ -587,26 +466,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
     const trimmed = name.trim();
     if (trimmed) {
       setUsername(trimmed);
-      localStorage.setItem("nestor_username", trimmed);
     }
   };
 
-  const [shiftsRegistry, setShiftsRegistry] = useState<ShiftType[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_shifts_registry");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return DEFAULT_SHIFTS;
-        }
-      } else {
-        localStorage.setItem("nestor_shifts_registry", JSON.stringify(DEFAULT_SHIFTS));
-        return DEFAULT_SHIFTS;
-      }
-    }
-    return DEFAULT_SHIFTS;
-  });
+  const [shiftsRegistry, setShiftsRegistry] = useState<ShiftType[]>(DEFAULT_SHIFTS);
 
   const addShiftType = (name: string, timeRange: string) => {
     const trimmedName = name.trim();
@@ -615,7 +478,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
     setShiftsRegistry((prev) => {
       if (prev.some((s) => s.name.toLowerCase() === trimmedName.toLowerCase())) return prev;
       const updated = [...prev, { name: trimmedName, timeRange: trimmedRange }];
-      localStorage.setItem("nestor_shifts_registry", JSON.stringify(updated));
       return updated;
     });
   };
@@ -623,7 +485,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   const removeShiftType = (name: string) => {
     setShiftsRegistry((prev) => {
       const updated = prev.filter((s) => s.name !== name);
-      localStorage.setItem("nestor_shifts_registry", JSON.stringify(updated));
       return updated;
     });
   };
@@ -636,24 +497,11 @@ export function NestorProvider({ children }: { children: ReactNode }) {
       const updated = prev.map((s) =>
         s.name === oldName ? { name: trimmedName, timeRange: trimmedRange } : s
       );
-      localStorage.setItem("nestor_shifts_registry", JSON.stringify(updated));
       return updated;
     });
   };
 
-  const [shiftAssignments, setShiftAssignments] = useState<Record<string, ShiftAssignment>>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("nestor_user_shift_assignments_v2");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return {};
-        }
-      }
-    }
-    return {};
-  });
+  const [shiftAssignments, setShiftAssignments] = useState<Record<string, ShiftAssignment>>({});
 
   const assignShift = (date: string, assignment: ShiftAssignment | null) => {
     setShiftAssignments((prev) => {
@@ -663,7 +511,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
       } else {
         updated[date] = assignment;
       }
-      localStorage.setItem("nestor_user_shift_assignments_v2", JSON.stringify(updated));
       return updated;
     });
   };
@@ -674,7 +521,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
     setProducts((prev) => {
       if (prev.includes(trimmed)) return prev;
       const updated = [...prev, trimmed];
-      localStorage.setItem("nestor_products", JSON.stringify(updated));
       return updated;
     });
   };
@@ -682,30 +528,16 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   const removeProduct = (productName: string) => {
     setProducts((prev) => {
       const updated = prev.filter((p) => p !== productName);
-      localStorage.setItem("nestor_products", JSON.stringify(updated));
       return updated;
     });
   };
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [loadingTickets, setLoadingTickets] = useState(true);
   
-  const [activeTimers, setActiveTimers] = useState<Record<number, string>>(() => {
-    if (typeof window !== "undefined") {
-      const savedTimers = localStorage.getItem("nestor_active_timers");
-      if (savedTimers) {
-        try {
-          return JSON.parse(savedTimers);
-        } catch (e) {
-          console.error("Error loading active timers", e);
-        }
-      }
-    }
-    return {};
-  });
+  const [activeTimers, setActiveTimers] = useState<Record<number, string>>({});
 
   const saveActiveTimers = (timers: Record<number, string>) => {
     setActiveTimers(timers);
-    localStorage.setItem("nestor_active_timers", JSON.stringify(timers));
   };
 
   // Load Tasks
@@ -739,27 +571,11 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           }
         } catch (e: any) {
           console.error("Supabase tasks fetch error, loading from local:", e?.message || e);
-          loadTasksLocal();
-        } finally {
+                  } finally {
           setLoadingTasks(false);
         }
       } else {
-        loadTasksLocal();
         setLoadingTasks(false);
-      }
-    }
-
-    function loadTasksLocal() {
-      const stored = localStorage.getItem("nestor_tasks");
-      if (stored) {
-        try {
-          setTasks(JSON.parse(stored));
-        } catch {
-          setTasks(initialTasks);
-        }
-      } else {
-        setTasks(initialTasks);
-        localStorage.setItem("nestor_tasks", JSON.stringify(initialTasks));
       }
     }
 
@@ -830,27 +646,11 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           }
         } catch (e: any) {
           console.error("Supabase tickets fetch error, loading from local:", e?.message || e);
-          loadTicketsLocal();
-        } finally {
+                  } finally {
           setLoadingTickets(false);
         }
       } else {
-        loadTicketsLocal();
         setLoadingTickets(false);
-      }
-    }
-
-    function loadTicketsLocal() {
-      const stored = localStorage.getItem("nestor_tickets");
-      if (stored) {
-        try {
-          setTickets(JSON.parse(stored));
-        } catch {
-          setTickets(initialTickets);
-        }
-      } else {
-        setTickets(initialTickets);
-        localStorage.setItem("nestor_tickets", JSON.stringify(initialTickets));
       }
     }
 
@@ -894,27 +694,11 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           }
         } catch (e: any) {
           console.error("Supabase OEM cases fetch error, loading from local:", e?.message || e?.code || JSON.stringify(e) || e);
-          loadOemCasesLocal();
-        } finally {
+                  } finally {
           setLoadingOemCases(false);
         }
       } else {
-        loadOemCasesLocal();
         setLoadingOemCases(false);
-      }
-    }
-
-    function loadOemCasesLocal() {
-      const stored = localStorage.getItem("nestor_oem_cases");
-      if (stored) {
-        try {
-          setOemCases(JSON.parse(stored));
-        } catch {
-          setOemCases(initialOemCases);
-        }
-      } else {
-        setOemCases(initialOemCases);
-        localStorage.setItem("nestor_oem_cases", JSON.stringify(initialOemCases));
       }
     }
 
@@ -1084,12 +868,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   // Save Local helper
   const saveTasksLocal = (updatedTasks: Task[]) => {
     setTasks(updatedTasks);
-    localStorage.setItem("nestor_tasks", JSON.stringify(updatedTasks));
   };
 
   const saveTicketsLocal = (updatedTickets: Ticket[]) => {
     setTickets(updatedTickets);
-    localStorage.setItem("nestor_tickets", JSON.stringify(updatedTickets));
   };
 
   // Add Task
@@ -1563,7 +1345,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
 
           const updated = [...oemCases, newCase];
           setOemCases(updated);
-          localStorage.setItem("nestor_oem_cases", JSON.stringify(updated));
         },
         updateOemCase: async (updatedCase) => {
           if (isSupabaseConfigured && supabase) {
@@ -1598,7 +1379,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
 
           const updated = oemCases.map((c) => (c.id === updatedCase.id ? updatedCase : c));
           setOemCases(updated);
-          localStorage.setItem("nestor_oem_cases", JSON.stringify(updated));
         },
         deleteOemCase: async (id) => {
           if (isSupabaseConfigured && supabase) {
@@ -1612,7 +1392,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
 
           const updated = oemCases.filter((c) => c.id !== id);
           setOemCases(updated);
-          localStorage.setItem("nestor_oem_cases", JSON.stringify(updated));
         },
 
         productCategories,
@@ -1621,12 +1400,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           if (!trimmed || productCategories.includes(trimmed)) return;
           const updated = [...productCategories, trimmed];
           setProductCategories(updated);
-          localStorage.setItem("nestor_product_categories", JSON.stringify(updated));
         },
         removeProductCategory: (cat) => {
           const updated = productCategories.filter((c) => c !== cat);
           setProductCategories(updated);
-          localStorage.setItem("nestor_product_categories", JSON.stringify(updated));
         },
 
         caseTypes,
@@ -1635,12 +1412,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           if (!trimmed || caseTypes.includes(trimmed)) return;
           const updated = [...caseTypes, trimmed];
           setCaseTypes(updated);
-          localStorage.setItem("nestor_case_types", JSON.stringify(updated));
         },
         removeCaseType: (type) => {
           const updated = caseTypes.filter((t) => t !== type);
           setCaseTypes(updated);
-          localStorage.setItem("nestor_case_types", JSON.stringify(updated));
         },
 
         statusUpdates,
@@ -1649,12 +1424,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           if (!trimmed || statusUpdates.includes(trimmed)) return;
           const updated = [...statusUpdates, trimmed];
           setStatusUpdates(updated);
-          localStorage.setItem("nestor_status_updates", JSON.stringify(updated));
         },
         removeStatusUpdate: (status) => {
           const updated = statusUpdates.filter((s) => s !== status);
           setStatusUpdates(updated);
-          localStorage.setItem("nestor_status_updates", JSON.stringify(updated));
         },
 
         teamMembers,
@@ -1663,12 +1436,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           if (!trimmed || teamMembers.includes(trimmed)) return;
           const updated = [...teamMembers, trimmed];
           setTeamMembers(updated);
-          localStorage.setItem("nestor_team_members", JSON.stringify(updated));
         },
         removeTeamMember: (name) => {
           const updated = teamMembers.filter((m) => m !== name);
           setTeamMembers(updated);
-          localStorage.setItem("nestor_team_members", JSON.stringify(updated));
         },
 
         // Shift Roster
@@ -1708,7 +1479,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           }
           setRosterAssignments((prev) => {
             const updated = { ...prev, [key]: shiftCode };
-            localStorage.setItem("nestor_roster_assignments", JSON.stringify(updated));
             return updated;
           });
         },
@@ -1776,7 +1546,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
 
           setRosterAssignments((prev) => {
             const updated = { ...prev, ...localUpdates };
-            localStorage.setItem("nestor_roster_assignments", JSON.stringify(updated));
             return updated;
           });
         },
@@ -1787,7 +1556,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           // Apply to local state immediately
           setRosterAssignments((prev) => {
             const updated = { ...prev, ...changes };
-            localStorage.setItem("nestor_roster_assignments", JSON.stringify(updated));
             return updated;
           });
 
@@ -1952,14 +1720,12 @@ export function NestorProvider({ children }: { children: ReactNode }) {
             const updated = prev.some((p) => p.code === preset.code)
               ? prev.map((p) => (p.code === preset.code ? preset : p))
               : [...prev, preset];
-            localStorage.setItem("nestor_shift_presets", JSON.stringify(updated));
             return updated;
           });
         },
         removeShiftPreset: (code) => {
           setShiftPresets((prev) => {
             const updated = prev.filter((p) => p.code !== code);
-            localStorage.setItem("nestor_shift_presets", JSON.stringify(updated));
             return updated;
           });
         },
