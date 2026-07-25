@@ -1,26 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Lato:wght@400;700&family=Merriweather:wght@400;700&family=Outfit:wght@400;600;700&family=Playfair+Display:wght@400;700&family=Poppins:wght@400;600;700&family=Roboto:wght@400;500;700&display=swap');
 @import "tailwindcss";
+@import "../src/shared/styles/tokens.css";
+
+@variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter), var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Theme mappings for Tailwind v4 */
+  --color-border: var(--color-border);
+  --color-card-bg: var(--color-card-bg);
+  --color-sidebar-bg: var(--color-sidebar-bg);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-soft: var(--color-text-soft);
+  --color-text-muted: var(--color-text-muted);
+
+  --color-accent-purple: var(--color-accent-purple);
+  --color-accent-cyan: var(--color-accent-cyan);
+  --color-accent-blue: var(--color-accent-blue);
+
+  --color-purple: var(--color-purple);
+  --color-pink: var(--color-pink);
+  --color-blue: var(--color-blue);
+  --color-cyan: var(--color-cyan);
+  --color-teal: var(--color-teal);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+
+  --radius-card: var(--radius-card);
+  --radius-btn: var(--radius-btn);
+  --radius-input: var(--radius-input);
+  --radius-badge: var(--radius-badge);
+  --radius-pill: var(--radius-pill);
+  --radius-control: var(--radius-control);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-glow: var(--shadow-glow);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
+
+
 
 body {
+  margin: 0;
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+* {
+  box-sizing: border-box;
+}
+
+/* ── Native select options ── */
+.dark select option {
+  background-color: #12192d !important;
+  color: var(--color-text-primary) !important;
+}
+
+
+/* ── Form inputs color-scheme (browser chrome for date/time pickers) ── */
+.dark input,
+.dark textarea,
+.dark select {
+  color-scheme: dark;
+}
+
+
+
+/* ── Date/time pickers — explicit background so browser doesn't override ── */
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"],
+.dark input[type="week"],
+.dark input[type="month"] {
+  color-scheme: dark !important;
+  background-color: #0d1424 !important;
+  color: var(--color-text-primary) !important;
+}
+
+
+
+/* ── Chrome autofill hack — dark ── */
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark textarea:-webkit-autofill,
+.dark select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #0d1424 inset !important;
+  -webkit-text-fill-color: var(--color-text-primary) !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+
+
+/* ── Scrollbar — dark ── */
+.dark ::-webkit-scrollbar { width: 4px; height: 4px; }
+.dark ::-webkit-scrollbar-track { background: transparent; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Hide scrollbar utility ── */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+

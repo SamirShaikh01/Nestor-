@@ -1,65 +1,186 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { KeyRound, Lock, AlertCircle, ShieldCheck } from "lucide-react";
+import { DashboardOverview } from "@/src/features/dashboard/components/dashboard-overview";
+import { TaskModule } from "@/src/features/task/components/task-module";
+import { TicketModule } from "@/src/features/ticket/components/ticket-module";
+import { OemCaseModule } from "@/src/features/oem-case/components/oem-case-module";
+import { ShiftRosterModule } from "@/src/features/shift-roster/components/shift-roster-module";
+import { PasswordVaultModule } from "@/src/features/password-vault/components/password-vault-module";
+import { CalendarModule } from "@/src/features/calendar/components/calendar-module";
+import { SettingsPage } from "@/src/features/settings/components/settings-page";
+import { ReportsModule } from "@/src/features/reports/components/reports-module";
+import { UserManagementModule } from "@/src/features/user-management/components/user-management-module";
+import { LoginPage } from "@/src/features/auth/components/login-page";
+import { AppShell, type ViewId } from "@/src/shared/components/layout/app-shell";
+import { useNestor } from "@/src/shared/context/nestor-context";
+import { supabase, isSupabaseConfigured } from "@/src/shared/lib/supabase";
+
+function ChangePasswordView({ onComplete }: { onComplete: () => void }) {
+  const { user } = useNestor();
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setErrorMsg("Password must be at least 6 characters long.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      // 1. Update Supabase Auth Password
+      const { error: authErr } = await supabase!.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (authErr) throw authErr;
+
+      // 2. Update status to 'active' in public.profiles table
+      const { error: profileErr } = await supabase!
+        .from("profiles")
+        .update({ status: "active" })
+        .eq("id", user.id);
+
+      if (profileErr) throw profileErr;
+
+      setSuccessMsg("Password changed successfully! Opening Nestor...");
+      setTimeout(() => {
+        onComplete();
+      }, 1500);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to update password.");
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#080d16] relative overflow-hidden select-none">
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 rounded-full bg-accent-purple/10 blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-accent-cyan/10 blur-[100px] pointer-events-none" />
+
+      <div className="w-full max-w-md rounded-card border shadow-glow border-white/5 bg-[#0f172a]/80 backdrop-blur-md p-8 space-y-6 z-10">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-accent-purple/10 text-accent-purple mb-2 shadow-inner">
+            <KeyRound size={26} />
+          </div>
+          <h1 className="text-xl font-extrabold text-white tracking-tight">
+            Set Your Password
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xs text-text-soft">
+            This is your first login or your password has been reset by an administrator. Please set a secure password to proceed.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        {errorMsg && (
+          <div className="p-3 rounded-input bg-danger/10 border border-danger/25 text-xs text-danger flex items-start gap-2">
+            <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="p-3 rounded-input bg-accent-cyan/10 border border-accent-cyan/25 text-xs text-accent-cyan flex items-start gap-2">
+            <ShieldCheck size={15} className="flex-shrink-0 mt-0.5" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="relative">
+            <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-soft" />
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New Password (min 6 chars)"
+              className="w-full rounded-input border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0d1424]/60 pl-10 pr-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-cyan focus:bg-white dark:focus:bg-[#111c30] transition-all"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+
+          <div className="relative">
+            <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-soft" />
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm New Password"
+              className="w-full rounded-input border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0d1424]/60 pl-10 pr-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-cyan focus:bg-white dark:focus:bg-[#111c30] transition-all"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-btn bg-gradient-to-r from-accent-purple to-accent-cyan py-3 text-sm font-bold text-white shadow-glow hover:scale-[1.02] transition-all uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
           >
-            Documentation
-          </a>
-        </div>
-      </main>
+            {loading ? "Saving Password..." : "Update Password"}
+          </button>
+        </form>
+      </div>
     </div>
+  );
+}
+
+export default function HomePage() {
+  const { user, status, setStatus } = useNestor();
+  const [activeView, setActiveView] = useState<ViewId>("dashboard");
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+
+  if (isSupabaseConfigured && !user) {
+    return <LoginPage />;
+  }
+
+  // Intercept the workflow if the account status is 'pending'
+  if (isSupabaseConfigured && user && status === "pending") {
+    return <ChangePasswordView onComplete={() => setStatus("active")} />;
+  }
+
+  return (
+    <AppShell activeView={activeView} onViewChange={(view) => setActiveView(view)}>
+      {activeView === "dashboard" ? (
+        <DashboardOverview
+          onViewChange={(view) => setActiveView(view)}
+          onSelectTask={setSelectedTaskId}
+          onSelectTicket={setSelectedTicketId}
+        />
+      ) : null}
+      {activeView === "tasks" ? (
+        <TaskModule
+          selectedTaskId={selectedTaskId}
+          onSelectTask={setSelectedTaskId}
+        />
+      ) : null}
+      {activeView === "tickets" ? (
+        <TicketModule
+          selectedTicketId={selectedTicketId}
+          onSelectTicket={setSelectedTicketId}
+        />
+      ) : null}
+      {activeView === "oem-cases" ? <OemCaseModule /> : null}
+      {activeView === "shift-roster" ? <ShiftRosterModule /> : null}
+      {activeView === "password-vault" ? <PasswordVaultModule /> : null}
+      {activeView === "calendar" ? <CalendarModule /> : null}
+      {activeView === "user-management" ? <UserManagementModule /> : null}
+      {activeView === "settings" ? <SettingsPage /> : null}
+      {activeView === "reports" ? <ReportsModule /> : null}
+    </AppShell>
   );
 }

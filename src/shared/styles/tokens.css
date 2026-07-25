@@ -1,0 +1,78 @@
+:root {
+  /* DARK THEME (Default) - Enhanced Contrast */
+  --color-bg: #05070f;
+  --color-bg-accent: #0f1526;
+  --color-surface: rgba(18, 25, 45, 0.92);
+  --color-surface-strong: rgba(26, 36, 64, 0.98);
+  --color-border: rgba(99, 102, 241, 0.15);
+  --color-text: #f8fafc;
+  --color-text-muted: #cbd5e1;
+  --color-text-soft: #94a3b8;
+  
+  --color-sidebar-bg: #0b101d;
+  --color-card-bg: rgba(15, 21, 38, 0.95);
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  
+  --color-purple: #a855f7;
+  --color-pink: #d946ef;
+  --color-blue: #3b82f6;
+  --color-cyan: #22d3ee;
+  --color-teal: #14b8a6;
+  --color-success: #00e676;
+  --color-warning: #fbbf24;
+  --color-danger: #ff4d6d;
+  
+  --color-accent-purple: #a855f7;
+  --color-accent-cyan: #22d3ee;
+  --color-accent-blue: #3b82f6;
+
+  /* Radii — fully rounded, no sharp edges */
+  --radius-card: 20px;
+  --radius-btn: 999px;
+  --radius-input: 10px;
+  --radius-badge: 8px;
+  --radius-pill: 999px;
+  --radius-control: 12px;
+
+  --shadow-soft: 0 20px 48px -12px rgba(0, 0, 0, 0.85), 0 4px 20px -4px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 16px 36px -8px rgba(168, 85, 247, 0.32), 0 4px 12px -4px rgba(168, 85, 247, 0.16);
+  
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+}
+
+
+body {
+  background:
+    radial-gradient(ellipse at top left, rgba(168, 85, 247, 0.16), transparent 38%),
+    radial-gradient(ellipse at bottom right, rgba(34, 211, 238, 0.12), transparent 42%),
+    var(--color-bg);
+  color: var(--color-text);
+  transition: background 0.4s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+
+::selection {
+  background: rgba(168, 85, 247, 0.28);
+  color: white;
+}
+
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--color-purple), var(--color-cyan));
+  border-radius: 999px;
+}
+
