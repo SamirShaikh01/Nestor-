@@ -31,9 +31,11 @@ export function ShiftRosterModule() {
     assignRosterShift,
     bulkAssignRosterShifts,
     saveRosterChanges,
+    clearRosterMonth,
     removeRosterMember,
     addShiftPreset,
     role,
+    username,
     shiftRequests,
     reviewShiftRequest,
   } = useNestor();
@@ -115,7 +117,7 @@ export function ShiftRosterModule() {
 
   // Filtered Roster Members
   const filteredMembers = useMemo(() => {
-    return rosterMembers.filter((m) => {
+    const members = rosterMembers.filter((m) => {
       const query = search.toLowerCase().trim();
       const matchSearch =
         !query ||
@@ -134,31 +136,43 @@ export function ShiftRosterModule() {
 
       return true;
     });
-  }, [rosterMembers, search, filterShiftCode, daysInMonth, rosterAssignments]);
+
+    members.sort((a, b) => {
+      if (a.name.toLowerCase() === username?.toLowerCase()) return -1;
+      if (b.name.toLowerCase() === username?.toLowerCase()) return 1;
+      return 0;
+    });
+
+    return members;
+  }, [rosterMembers, search, filterShiftCode, daysInMonth, rosterAssignments, username]);
 
   // Today's date string
   const todayStr = new Date().toISOString().split("T")[0];
 
-  // Calculate Metrics for selected month
-  const metrics = useMemo(() => {
-    const totalMembers = rosterMembers.length;
-    let todayWorking = 0;
-    let todayOff = 0;
-    let totalNightShifts = 0;
+  // Today's Shifts summary for the cards
+  const shiftsToday = useMemo(() => {
+    const shiftCounts: Record<string, { count: number; members: string[]; name: string; bgHex: string; textHex: string }> = {};
 
-    rosterMembers.forEach((m) => {
-      daysInMonth.forEach((d) => {
-        const code = rosterAssignments[`${m.employeeId}_${d.dateStr}`] || "G";
-        if (code === "N") totalNightShifts++;
-        if (d.dateStr === todayStr) {
-          if (code === "WO" || code === "L") todayOff++;
-          else todayWorking++;
-        }
-      });
+    shiftPresets.forEach((preset) => {
+      shiftCounts[preset.code] = { 
+        count: 0, 
+        members: [], 
+        name: preset.name, 
+        bgHex: preset.bgHex,
+        textHex: preset.textHex
+      };
     });
 
-    return { totalMembers, todayWorking, todayOff, totalNightShifts };
-  }, [rosterMembers, daysInMonth, rosterAssignments, todayStr]);
+    rosterMembers.forEach((m) => {
+      const shiftCode = rosterAssignments[`${m.employeeId}_${todayStr}`] || "G";
+      if (shiftCounts[shiftCode]) {
+        shiftCounts[shiftCode].count++;
+        shiftCounts[shiftCode].members.push(m.name);
+      }
+    });
+
+    return Object.values(shiftCounts).filter(s => s.count > 0);
+  }, [rosterMembers, rosterAssignments, shiftPresets, todayStr]);
 
   // Quick lookup helper for shift preset
   const getShiftPreset = (code: string): ShiftPreset => {
@@ -230,6 +244,10 @@ export function ShiftRosterModule() {
     }
   };
 
+  const handleCancelChanges = () => {
+    setPendingChanges({});
+  };
+
   return (
     <div className="space-y-6">
       {/* ── Header Toolbar ── */}
@@ -263,23 +281,32 @@ export function ShiftRosterModule() {
             </button>
           </div>
 
-          {/* Publish Roster button — only visible for admins when there are pending changes */}
-          {role === "admin" && pendingCount > 0 && (
-            <button
-              onClick={handlePublishRoster}
-              disabled={isSaving}
-              className="flex items-center gap-2 rounded-btn bg-emerald-500 hover:bg-emerald-400 disabled:opacity-60 px-4 py-2.5 text-xs font-bold text-white shadow-[0_4px_14px_rgba(16,185,129,0.4)] hover:scale-105 active:scale-95 transition-all uppercase tracking-wider cursor-pointer relative"
-            >
-              {isSaving ? (
-                <span className="w-3.5 h-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
-              ) : (
-                <Check size={14} strokeWidth={3} />
+          {/* Publish Roster button — only visible for admins */}
+          {role === "admin" && (
+            <div className="flex items-center gap-2">
+              {pendingCount > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handlePublishRoster}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 rounded-btn bg-emerald-500 px-4 py-2.5 text-xs font-bold text-white shadow-glow hover:scale-105 transition-all uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                  >
+                    <Check size={15} />
+                    {isSaving ? "Saving..." : "Publish"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelChanges}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 rounded-btn border border-danger/30 bg-danger/10 px-4 py-2.5 text-xs font-bold text-danger hover:bg-danger hover:text-white transition-all uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                  >
+                    <X size={15} />
+                    Cancel
+                  </button>
+                </>
               )}
-              {isSaving ? "Saving..." : "Publish Roster"}
-              <span className="absolute -top-1.5 -right-1.5 rounded-full bg-white text-emerald-600 text-[9px] font-extrabold w-4 h-4 flex items-center justify-center shadow">
-                {pendingCount}
-              </span>
-            </button>
+            </div>
           )}
 
           {/* Add Team Member */}
@@ -294,59 +321,48 @@ export function ShiftRosterModule() {
         </div>
       </motion.div>
 
-      {/* ── Metric Summary Cards ── */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="rounded-[20px] border p-4 shadow-soft flex items-center justify-between dark:border-white/5 dark:bg-card-bg light:border-slate-200 light:bg-white"
-        >
-          <div>
-            <span className="text-2xl font-bold text-text-primary block">{metrics.totalMembers}</span>
-            <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide">Total Roster Members</span>
-          </div>
-          <div className="w-10 h-10 rounded-badge bg-accent-blue/10 text-accent-blue flex items-center justify-center border border-accent-blue/20">
-            <Users size={18} />
-          </div>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="rounded-[20px] border p-4 shadow-soft flex items-center justify-between dark:border-white/5 dark:bg-card-bg light:border-slate-200 light:bg-white"
-        >
-          <div>
-            <span className="text-2xl font-bold text-emerald-500 block">{metrics.todayWorking}</span>
-            <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide">Working Shifts Today</span>
-          </div>
-          <div className="w-10 h-10 rounded-badge bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20">
-            <Clock size={18} />
-          </div>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="rounded-[20px] border p-4 shadow-soft flex items-center justify-between dark:border-white/5 dark:bg-card-bg light:border-slate-200 light:bg-white"
-        >
-          <div>
-            <span className="text-2xl font-bold text-amber-500 block">{metrics.todayOff}</span>
-            <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide">Offs / Leaves Today</span>
-          </div>
-          <div className="w-10 h-10 rounded-badge bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
-            <Coffee size={18} />
-          </div>
-        </motion.div>
-
-        <motion.div
-          whileHover={{ y: -2 }}
-          className="rounded-[20px] border p-4 shadow-soft flex items-center justify-between dark:border-white/5 dark:bg-card-bg light:border-slate-200 light:bg-white"
-        >
-          <div>
-            <span className="text-2xl font-bold text-accent-purple block">{metrics.totalNightShifts}</span>
-            <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide">Monthly Night Shifts</span>
-          </div>
-          <div className="w-10 h-10 rounded-badge bg-accent-purple/10 text-accent-purple flex items-center justify-center border border-accent-purple/20">
-            <Moon size={18} />
-          </div>
-        </motion.div>
+      {/* ── Today's Shifts Summary ── */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {shiftsToday.map((shift, idx) => (
+          <motion.div
+            key={idx}
+            whileHover={{ y: -4, scale: 1.02 }}
+            className="relative overflow-hidden rounded-[20px] border p-5 flex flex-col justify-between dark:bg-[#0c1222] light:bg-white transition-all duration-300"
+            style={{
+              borderColor: `${shift.bgHex}30`,
+              boxShadow: `0 8px 30px -6px ${shift.bgHex}25, inset 0 0 20px -5px ${shift.bgHex}10`
+            }}
+          >
+            {/* Background accent glow */}
+            <div 
+              className="absolute -top-10 -right-10 w-28 h-28 rounded-full blur-[30px] opacity-20 pointer-events-none"
+              style={{ backgroundColor: shift.bgHex }}
+            />
+            
+            <div className="relative flex items-start justify-between mb-4">
+              <span className="text-[11px] font-extrabold text-text-primary uppercase tracking-[0.15em] opacity-90 leading-snug pr-2">
+                {shift.name}
+              </span>
+              <div 
+                className="w-10 h-10 rounded-[12px] flex items-center justify-center text-sm font-black shadow-lg flex-shrink-0"
+                style={{ 
+                  backgroundColor: shift.bgHex, 
+                  color: shift.textHex,
+                  boxShadow: `0 4px 12px ${shift.bgHex}50`
+                }}
+              >
+                {shift.count}
+              </div>
+            </div>
+            
+            <div className="relative mt-auto">
+              <p className="text-[9px] font-bold text-text-soft/60 uppercase tracking-widest mb-1.5">Assigned Members</p>
+              <div className="text-[20px] font-semibold text-text-primary line-clamp-2 leading-relaxed" title={shift.members.join(", ")}>
+                {shift.members.length > 0 ? shift.members.join(", ") : "—"}
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
       {/* Admin Tab Switcher */}

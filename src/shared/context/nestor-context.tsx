@@ -109,6 +109,7 @@ interface NestorContextType {
   assignRosterShift: (employeeId: string, date: string, shiftCode: string) => void;
   bulkAssignRosterShifts: (employeeId: string, startDate: string, endDate: string, shiftCode: string) => void;
   saveRosterChanges: (changes: Record<string, string>) => Promise<void>;
+  clearRosterMonth: (year: number, month: number) => Promise<void>;
   addRosterMember: (member: RosterMember) => void;
   removeRosterMember: (employeeId: string) => void;
   addShiftPreset: (preset: ShiftPreset) => void;
@@ -1588,6 +1589,36 @@ export function NestorProvider({ children }: { children: ReactNode }) {
         removeRosterMember: (employeeId) => {
           // Dynamic database active profiles are mapped to roster members instead
         },
+
+        clearRosterMonth: async (year, month) => {
+          const monthStr = String(month + 1).padStart(2, "0");
+          const prefix = `${year}-${monthStr}-`;
+          
+          if (isSupabaseConfigured && supabase) {
+            try {
+              const { error } = await supabase
+                .from("shift_assignments")
+                .delete()
+                .like("date_str", `${prefix}%`);
+              if (error) throw error;
+            } catch (err) {
+              console.error("Error clearing roster month:", err);
+            }
+          }
+          
+          setRosterAssignments((prev) => {
+            const updated = { ...prev };
+            for (const key of Object.keys(updated)) {
+              // key is employeeId_YYYY-MM-DD
+              const datePart = key.split("_")[1];
+              if (datePart && datePart.startsWith(prefix)) {
+                delete updated[key];
+              }
+            }
+            return updated;
+          });
+        },
+
         shiftRequests,
         submitShiftRequest: async (dateStr, requestedShiftCode, reason) => {
           if (isSupabaseConfigured && supabase && user) {
