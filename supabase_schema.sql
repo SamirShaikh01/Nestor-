@@ -407,11 +407,46 @@ BEGIN
     now()
   )
   ON CONFLICT (id) DO UPDATE
-  SET email = p_email, role = p_role, username = p_username, status = 'pending';
+  SET employee_id = EXCLUDED.employee_id,
+      email = EXCLUDED.email,
+      role = EXCLUDED.role,
+      username = EXCLUDED.username,
+      status = EXCLUDED.status,
+      last_seen_at = EXCLUDED.last_seen_at;
 
   RETURN v_user_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Function to let admins update a user's employee ID without granting broad
+-- profile update permission to every authenticated user.
+CREATE OR REPLACE FUNCTION public.admin_update_user_employee_id(
+  p_user_id UUID,
+  p_employee_id TEXT
+)
+RETURNS VOID
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_caller_role TEXT;
+BEGIN
+  SELECT role INTO v_caller_role FROM public.profiles WHERE id = auth.uid();
+  IF v_caller_role IS DISTINCT FROM 'admin' THEN
+    RAISE EXCEPTION 'Access Denied: Only administrators can update employee IDs.';
+  END IF;
+
+  UPDATE public.profiles
+  SET employee_id = NULLIF(btrim(p_employee_id), '')
+  WHERE id = p_user_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'User profile not found.';
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+GRANT EXECUTE ON FUNCTION public.admin_update_user_employee_id(UUID, TEXT) TO authenticated;
 
 -- Function to let admin reset any user password securely
 CREATE OR REPLACE FUNCTION public.admin_reset_password(

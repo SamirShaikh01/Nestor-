@@ -107,12 +107,12 @@ export function UserManagementModule() {
         // If user specified an employee ID, update the profile record
         const createdUserId = data;
         if (createdUserId && newEmployeeId.trim()) {
-          const { error: profileError } = await supabase!
-            .from("profiles")
-            .update({ employee_id: newEmployeeId.trim() })
-            .eq("id", createdUserId);
+          const { error: profileError } = await supabase!.rpc("admin_update_user_employee_id", {
+            p_user_id: createdUserId,
+            p_employee_id: newEmployeeId.trim(),
+          });
           if (profileError) {
-            console.error("Failed to update employee ID on user profile:", profileError.message);
+            throw profileError;
           }
         }
 
