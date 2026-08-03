@@ -18,7 +18,6 @@ import { useNestor } from "@/src/shared/context/nestor-context";
 import { supabase, isSupabaseConfigured } from "@/src/shared/lib/supabase";
 
 function ChangePasswordView({ onComplete }: { onComplete: () => void }) {
-  const { user } = useNestor();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -41,20 +40,14 @@ function ChangePasswordView({ onComplete }: { onComplete: () => void }) {
     setSuccessMsg("");
 
     try {
-      // 1. Update Supabase Auth Password
-      const { error: authErr } = await supabase!.auth.updateUser({
-        password: newPassword,
+      // Complete the first-login flow server-side. This updates the credential
+      // and profile status atomically and is restricted to the signed-in,
+      // pending account.
+      const { error } = await supabase!.rpc("complete_initial_password", {
+        p_new_password: newPassword,
       });
 
-      if (authErr) throw authErr;
-
-      // 2. Update status to 'active' in public.profiles table
-      const { error: profileErr } = await supabase!
-        .from("profiles")
-        .update({ status: "active" })
-        .eq("id", user.id);
-
-      if (profileErr) throw profileErr;
+      if (error) throw error;
 
       setSuccessMsg("Password changed successfully! Opening Nestor...");
       setTimeout(() => {
