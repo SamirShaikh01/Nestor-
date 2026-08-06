@@ -51,8 +51,12 @@ export function ShiftFormModal({ isOpen, onClose, selectedDate }: ShiftFormModal
   let initialInTime = "";
   let initialOutTime = "";
 
-  if (isSupabaseConfigured && employeeId) {
-    const code = rosterAssignments[`${employeeId}_${selectedDate}`];
+  if (isSupabaseConfigured) {
+    // Only read from the legacy local map in true offline/no-backend mode.
+    // If employeeId just hasn't loaded yet, leave the fields blank rather
+    // than falling back to unscoped state that could belong to a previous
+    // account's session in this browser tab.
+    const code = employeeId ? rosterAssignments[`${employeeId}_${selectedDate}`] : undefined;
     if (code) {
       if (code === "WO") {
         initialShiftName = "Week Off";
@@ -124,7 +128,16 @@ export function ShiftFormModal({ isOpen, onClose, selectedDate }: ShiftFormModal
       requestedCode = preset ? preset.code : "S1"; // default fallback
     }
 
-    if (isSupabaseConfigured && employeeId) {
+    if (isSupabaseConfigured) {
+      // Never silently fall through to the legacy local-only write path here —
+      // that would look like a successful save but actually write to a dead
+      // end, and briefly showing/writing to unscoped state during the
+      // employeeId hydration race is exactly what caused shifts to leak
+      // across accounts in the same browser tab.
+      if (!employeeId) {
+        alert("Your profile is still loading — please wait a moment and try again.");
+        return;
+      }
       if (role === "admin") {
         // Admins update directly
         await assignRosterShift(employeeId, selectedDate, requestedCode);
@@ -135,8 +148,10 @@ export function ShiftFormModal({ isOpen, onClose, selectedDate }: ShiftFormModal
           alert("Please provide a reason for the shift change request.");
           return;
         }
-        await submitShiftRequest(selectedDate, requestedCode, reason.trim());
-        setRequestSubmitted(true);
+        const success = await submitShiftRequest(selectedDate, requestedCode, reason.trim());
+        if (success) {
+          setRequestSubmitted(true);
+        }
       }
     } else {
       assignShift(selectedDate, {
@@ -151,14 +166,20 @@ export function ShiftFormModal({ isOpen, onClose, selectedDate }: ShiftFormModal
 
   const handleDelete = async () => {
     if (confirm("Are you sure you want to delete this shift assignment?")) {
-      if (isSupabaseConfigured && employeeId) {
+      if (isSupabaseConfigured) {
+        if (!employeeId) {
+          alert("Your profile is still loading — please wait a moment and try again.");
+          return;
+        }
         if (role === "admin") {
           await assignRosterShift(employeeId, selectedDate, "WO"); // delete falls back to Week Off
           onClose();
         } else {
           // Member requests off
-          await submitShiftRequest(selectedDate, "WO", "Requested shift removal / Week Off");
-          setRequestSubmitted(true);
+          const success = await submitShiftRequest(selectedDate, "WO", "Requested shift removal / Week Off");
+          if (success) {
+            setRequestSubmitted(true);
+          }
         }
       } else {
         assignShift(selectedDate, null);

@@ -43,8 +43,16 @@ Nestor is a premium, high-performance internal operations and workforce manageme
 
 ## Documentation Index
 
-Explore the core structural pillars of Nestor through the dedicated documentation files:
-- [Architecture](./ARCHITECTURE.md) - High-level system design and component structure.
+The authoritative engineering reference for this project is [docs/brain.md](./docs/brain.md) —
+start there. Everything else in `/docs` is a focused deep-dive:
+- [Brain](./docs/brain.md) - The permanent memory/architecture document. Start here.
+- [Architecture](./docs/architecture.md) - High-level system design and component structure.
+- [Database](./docs/database.md) - Supabase schema and data relationships.
+- [Authentication](./docs/auth.md) - Role-based access control and session management.
+- [API](./docs/api.md) - Every RPC/data-access contract (no REST API exists in this app).
+- [Decisions](./docs/decisions.md) - Architecture Decision Records (ADRs).
+- [Roadmap](./docs/roadmap.md) - Future features, short/medium/long term.
+- [Changelog](./docs/changelog.md) - Major changes, chronologically.
+- [Setup](./docs/setup.md) - Local development guide.
 - [Design](./DESIGN.md) - The philosophy and implementation of Nestor's premium UI.
-- [Database](./DATABASE.md) - Supabase schema and data relationships.
-- [Authentication](./AUTH.md) - Role-based access control and session management.
+- [Vision](./VISION.md) - Aspirational future direction, explicitly not yet built.

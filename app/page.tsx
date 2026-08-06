@@ -136,6 +136,7 @@ export default function HomePage() {
   const [activeView, setActiveView] = useState<ViewId>("dashboard");
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [selectedOemCaseId, setSelectedOemCaseId] = useState<string | null>(null);
 
   if (isSupabaseConfigured && !user) {
     return <LoginPage />;
@@ -153,6 +154,7 @@ export default function HomePage() {
           onViewChange={(view) => setActiveView(view)}
           onSelectTask={setSelectedTaskId}
           onSelectTicket={setSelectedTicketId}
+          onSelectOemCase={setSelectedOemCaseId}
         />
       ) : null}
       {activeView === "tasks" ? (
@@ -167,7 +169,12 @@ export default function HomePage() {
           onSelectTicket={setSelectedTicketId}
         />
       ) : null}
-      {activeView === "oem-cases" ? <OemCaseModule /> : null}
+      {activeView === "oem-cases" ? (
+        <OemCaseModule
+          selectedOemCaseId={selectedOemCaseId}
+          onSelectOemCase={setSelectedOemCaseId}
+        />
+      ) : null}
       {activeView === "shift-roster" ? <ShiftRosterModule /> : null}
       {activeView === "password-vault" ? <PasswordVaultModule /> : null}
       {activeView === "calendar" ? <CalendarModule /> : null}

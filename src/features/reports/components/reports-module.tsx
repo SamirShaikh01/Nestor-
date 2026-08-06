@@ -7,7 +7,7 @@ import {
   Calendar,
   FileSpreadsheet,
   FileCode,
-  Printer,
+  FileDown,
   Ticket as TicketIcon,
   Workflow,
   ChevronDown,
@@ -18,6 +18,8 @@ import {
   Award,
 } from "lucide-react";
 import { CustomSelect } from "@/src/shared/components/ui/custom-select";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 
 type ReportType = "overall" | "tickets" | "tasks" | "shifts" | "meetings" | "learning";
@@ -213,7 +215,7 @@ export function ReportsModule() {
 
     // ── Data Tables ──
     if (reportType === "overall" || reportType === "tickets") {
-      csv += row(["srNo", "date", "Product name", "ticket id", "customer id", "customer name", "ticket subject", "ticket decription", "priority", "requester", "ticket created date", "current status", "My Task", "comment"]);
+      csv += row(["Sr No.", "Date", "Product Name", "Ticket Id", "Customer ID", "Customer Name", "Subject", "Details", "Priority", "Requester", "Created Date", "Status", "My Task", "Comment"]);
       filteredTickets.forEach((t, i) => { 
         const commentsString = t.comments?.map(c => `[${c.author}] ${c.content}`).join("; ") || "";
         csv += row([
@@ -337,80 +339,158 @@ export function ReportsModule() {
     downloadBlob(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nestor Report</title><style>${css}</style></head><body>${body}</body></html>`, "text/html;charset=utf-8;", `nestor_report_${reportType}_${period}.html`);
   };
 
+  // True one-click PDF download — generates a real .pdf file client-side via
+  // jsPDF and saves it directly, rather than opening the browser's print
+  // dialog and requiring a manual "Save as PDF" step.
   const handlePDF = () => {
-    const w = window.open("", "_blank");
-    if (!w) return;
-    const css = `body{font-family:sans-serif;padding:24px;color:#000;max-width:900px;margin:0 auto}h1{font-size:20px;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:4px}h2{font-size:15px;margin-top:22px;border-bottom:1px solid #ccc;padding-bottom:4px;color:#333}h3{font-size:12px;color:#555;margin:12px 0 4px}p{font-size:10px;color:#666;margin-bottom:16px}.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}.kpi{border:1px solid #ddd;border-radius:6px;padding:8px 10px}.kpi-label{font-size:8px;text-transform:uppercase;letter-spacing:.05em;color:#888}.kpi-value{font-size:16px;font-weight:700;color:#000;margin-top:2px}table{width:100%;border-collapse:collapse;margin-top:8px;page-break-inside:auto}th,td{padding:5px 7px;font-size:9px;text-align:left;border-bottom:1px solid #eee}th{background:#f5f5f5;font-weight:700;text-transform:uppercase;font-size:8px}tr{page-break-inside:avoid}`;
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const marginX = 40;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    let y = 50;
 
-    // ── Analytics ──
-    let analytics = "";
-
-    if (reportType === "overall" || reportType === "tickets") {
-      const statusMap: Record<string, number> = {};
-      const priorityMap: Record<string, number> = {};
-      const productMap: Record<string, number> = {};
-      filteredTickets.forEach((t) => {
-        statusMap[t.status] = (statusMap[t.status] || 0) + 1;
-        priorityMap[t.priority] = (priorityMap[t.priority] || 0) + 1;
-        if (t.product) productMap[t.product] = (productMap[t.product] || 0) + 1;
-      });
-      analytics += `<h2>Analytics Summary</h2><div class="kpi-grid">`;
-      analytics += `<div class="kpi"><div class="kpi-label">Total Tickets</div><div class="kpi-value">${metrics.totalTk}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Open</div><div class="kpi-value">${metrics.openTk}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Closed/Resolved</div><div class="kpi-value">${metrics.closedTk}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Top Product</div><div class="kpi-value" style="font-size:10px">${metrics.topProduct}</div></div>`;
-      analytics += `</div>`;
-      analytics += `<h3>Status Breakdown</h3><table><thead><tr><th>Status</th><th>Count</th><th>Share</th></tr></thead><tbody>${Object.entries(statusMap).map(([s,c])=>`<tr><td>${s}</td><td>${c}</td><td>${metrics.totalTk?Math.round(c/metrics.totalTk*100):0}%</td></tr>`).join("")}</tbody></table>`;
-      analytics += `<h3>Priority Breakdown</h3><table><thead><tr><th>Priority</th><th>Count</th></tr></thead><tbody>${Object.entries(priorityMap).sort().map(([p,c])=>`<tr><td>${p}</td><td>${c}</td></tr>`).join("")}</tbody></table>`;
-      if (Object.keys(productMap).length) {
-        analytics += `<h3>Tickets by Product</h3><table><thead><tr><th>Product</th><th>Count</th></tr></thead><tbody>${Object.entries(productMap).sort((a,b)=>b[1]-a[1]).map(([p,c])=>`<tr><td>${p}</td><td>${c}</td></tr>`).join("")}</tbody></table>`;
+    const ensureSpace = (needed: number) => {
+      if (y + needed > pageHeight - 40) {
+        doc.addPage();
+        y = 50;
       }
+    };
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Nestor Report — ${REPORT_OPTIONS.find((r) => r.value === reportType)?.label}`, marginX, y);
+    y += 18;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100);
+    doc.text(`Period: ${periodLabel}   |   Exported: ${new Date().toLocaleString()}`, marginX, y);
+    doc.setTextColor(0);
+    y += 18;
+
+    // ── KPI summary ──
+    const kpis: [string, string][] = [];
+    if (reportType === "overall") {
+      kpis.push(
+        ["Total Items", String(metrics.totalTk + metrics.totalK)],
+        ["Tickets", String(metrics.totalTk)],
+        ["Tasks", String(metrics.totalK)],
+        ["Time Logged", fmtMins(metrics.totalMins)]
+      );
+    } else if (reportType === "tickets") {
+      kpis.push(
+        ["Total Tickets", String(metrics.totalTk)],
+        ["Open", String(metrics.openTk)],
+        ["Closed/Resolved", String(metrics.closedTk)],
+        ["Top Product", metrics.topProduct]
+      );
+    } else if (reportType === "tasks") {
+      kpis.push(
+        ["Total Tasks", String(metrics.totalK)],
+        ["Completed", String(metrics.completedK)],
+        ["Pending", String(metrics.pendingK)],
+        ["Time Logged", fmtMins(metrics.totalMins)]
+      );
+    } else if (reportType === "shifts") {
+      kpis.push(
+        ["Assignments", String(metrics.totalSh)],
+        ["Days Worked", String(metrics.workedSh)],
+        ["Leaves / Off", `${metrics.leavesSh} / ${metrics.offsSh}`],
+        ["Hours Logged", `${metrics.shiftHrs}h`]
+      );
+    } else if (reportType === "meetings") {
+      const totalMin = filteredMeetings.reduce((s, t) => s + t.durationMinutes, 0);
+      kpis.push(
+        ["Total Meetings", String(filteredMeetings.length)],
+        ["Time Logged", fmtMins(totalMin)],
+        ["Completed", String(filteredMeetings.filter((t) => t.status === "completed").length)]
+      );
+    } else if (reportType === "learning") {
+      const totalMin = filteredLearning.reduce((s, t) => s + t.durationMinutes, 0);
+      kpis.push(
+        ["Total Sessions", String(filteredLearning.length)],
+        ["Time Logged", fmtMins(totalMin)],
+        ["Completed", String(filteredLearning.filter((t) => t.status === "completed").length)]
+      );
     }
 
-    if (reportType !== "tickets" && reportType !== "shifts") {
-      const catMap: Record<string, number> = {};
-      const catMins: Record<string, number> = {};
-      activeTaskSet.forEach((t) => {
-        catMap[t.category] = (catMap[t.category] || 0) + 1;
-        catMins[t.category] = (catMins[t.category] || 0) + t.durationMinutes;
-      });
-      const totalTaskMins = activeTaskSet.reduce((s,t)=>s+t.durationMinutes,0);
-      const completedCount = activeTaskSet.filter(t=>t.status==="completed").length;
-      analytics += `<h2>Analytics Summary</h2><div class="kpi-grid">`;
-      analytics += `<div class="kpi"><div class="kpi-label">Total Tasks</div><div class="kpi-value">${activeTaskSet.length}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Completed</div><div class="kpi-value">${completedCount}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Pending</div><div class="kpi-value">${activeTaskSet.length-completedCount}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Time Logged</div><div class="kpi-value">${fmtMins(totalTaskMins)}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Completion Rate</div><div class="kpi-value">${activeTaskSet.length?Math.round(completedCount/activeTaskSet.length*100):0}%</div></div>`;
-      analytics += `</div>`;
-      analytics += `<h3>Category Breakdown</h3><table><thead><tr><th>Category</th><th>Tasks</th><th>Time Logged</th><th>% of Time</th></tr></thead><tbody>${Object.entries(catMap).sort((a,b)=>b[1]-a[1]).map(([cat,c])=>`<tr><td>${cat}</td><td>${c}</td><td>${fmtMins(catMins[cat]||0)}</td><td>${totalTaskMins?Math.round((catMins[cat]||0)/totalTaskMins*100):0}%</td></tr>`).join("")}</tbody></table>`;
-    }
+    autoTable(doc, {
+      startY: y,
+      head: [["Metric", "Value"]],
+      body: kpis,
+      theme: "grid",
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [15, 23, 42] },
+      margin: { left: marginX, right: marginX },
+      tableWidth: 280,
+    });
+    y = (doc as any).lastAutoTable.finalY + 24;
 
-    if (reportType === "shifts") {
-      const shiftTypeMap: Record<string, number> = {};
-      filteredShifts.forEach((s) => { shiftTypeMap[s.shiftName] = (shiftTypeMap[s.shiftName] || 0) + 1; });
-      analytics += `<h2>Analytics Summary</h2><div class="kpi-grid">`;
-      analytics += `<div class="kpi"><div class="kpi-label">Total Assignments</div><div class="kpi-value">${metrics.totalSh}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Days Worked</div><div class="kpi-value">${metrics.workedSh}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Leaves</div><div class="kpi-value">${metrics.leavesSh}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Week Offs</div><div class="kpi-value">${metrics.offsSh}</div></div>`;
-      analytics += `<div class="kpi"><div class="kpi-label">Hours Logged</div><div class="kpi-value">${metrics.shiftHrs}h</div></div>`;
-      analytics += `</div>`;
-      analytics += `<h3>Shift Type Breakdown</h3><table><thead><tr><th>Shift</th><th>Count</th></tr></thead><tbody>${Object.entries(shiftTypeMap).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<tr><td>${n}</td><td>${c}</td></tr>`).join("")}</tbody></table>`;
-    }
-
-    let body = `<h1>Nestor Report — ${REPORT_OPTIONS.find(r => r.value === reportType)?.label}</h1><p>Period: ${periodLabel} | Exported: ${new Date().toLocaleString()}</p>${analytics}`;
+    // ── Data tables ──
     if (reportType === "overall" || reportType === "tickets") {
-      body += `<h2>Ticket Log (${filteredTickets.length} records)</h2><table><thead><tr><th>SR</th><th>Date</th><th>Ticket ID</th><th>Customer</th><th>Subject</th><th>Priority</th><th>Status</th></tr></thead><tbody>${filteredTickets.map((t,i) => `<tr><td>${i+1}</td><td>${t.date}</td><td><strong>${t.id}</strong></td><td>${t.customerName}</td><td>${t.subject}</td><td>${t.priority}</td><td>${t.status}</td></tr>`).join("")}</tbody></table>`;
+      ensureSpace(60);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Ticket Log (${filteredTickets.length} records)`, marginX, y);
+      y += 8;
+      autoTable(doc, {
+        startY: y,
+        head: [["SR", "Date", "Ticket ID", "Customer", "Subject", "Product", "Priority", "Status"]],
+        body: filteredTickets.map((t, i) => [
+          String(i + 1),
+          t.date,
+          t.id,
+          t.customerName,
+          t.subject,
+          t.product || "—",
+          t.priority,
+          t.status,
+        ]),
+        styles: { fontSize: 8, overflow: "linebreak" },
+        headStyles: { fillColor: [15, 23, 42] },
+        margin: { left: marginX, right: marginX },
+      });
+      y = (doc as any).lastAutoTable.finalY + 24;
     }
+
     if (reportType !== "tickets" && reportType !== "shifts") {
-      body += `<h2>Task Log (${activeTaskSet.length} records)</h2><table><thead><tr><th>Date</th><th>Task</th><th>Category</th><th>Status</th><th>Duration</th></tr></thead><tbody>${activeTaskSet.map((t) => `<tr><td>${t.date}</td><td><strong>${t.title}</strong></td><td>${t.category}</td><td>${t.status}</td><td>${fmtMins(t.durationMinutes)}</td></tr>`).join("")}</tbody></table>`;
+      ensureSpace(60);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      const label = reportType === "meetings" ? "Meetings" : reportType === "learning" ? "Learning Sessions" : "Task Log";
+      doc.text(`${label} (${activeTaskSet.length} records)`, marginX, y);
+      y += 8;
+      autoTable(doc, {
+        startY: y,
+        head: [["Date", "Task", "Category", "Status", "Duration"]],
+        body: activeTaskSet.map((t) => [t.date, t.title, t.category, t.status, fmtMins(t.durationMinutes)]),
+        styles: { fontSize: 8, overflow: "linebreak" },
+        headStyles: { fillColor: [15, 23, 42] },
+        margin: { left: marginX, right: marginX },
+      });
+      y = (doc as any).lastAutoTable.finalY + 24;
     }
+
     if (reportType === "shifts") {
-      body += `<h2>Shift Log (${filteredShifts.length} records)</h2><table><thead><tr><th>Date</th><th>Shift</th><th>Hours</th><th>Note</th></tr></thead><tbody>${filteredShifts.map((s) => `<tr><td>${s.date}</td><td><strong>${s.shiftName}</strong></td><td>${s.shiftName !== "Leave" && s.shiftName !== "Week Off" ? `${s.inTime}–${s.outTime}` : "—"}</td><td>${s.note||"—"}</td></tr>`).join("")}</tbody></table>`;
+      ensureSpace(60);
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Shift Log (${filteredShifts.length} records)`, marginX, y);
+      y += 8;
+      autoTable(doc, {
+        startY: y,
+        head: [["Date", "Shift", "Hours", "Note"]],
+        body: filteredShifts.map((s) => [
+          s.date,
+          s.shiftName,
+          s.shiftName !== "Leave" && s.shiftName !== "Week Off" ? `${s.inTime}–${s.outTime}` : "—",
+          s.note || "—",
+        ]),
+        styles: { fontSize: 8, overflow: "linebreak" },
+        headStyles: { fillColor: [15, 23, 42] },
+        margin: { left: marginX, right: marginX },
+      });
     }
-    w.document.write(`<html><head><title>Nestor Report</title><style>${css}</style></head><body><div class="container">${body}</div><script>window.onload=function(){window.print();window.close()}<\/script></body></html>`);
-    w.document.close();
+
+    doc.save(`nestor_report_${reportType}_${period}.pdf`);
   };
 
 
@@ -544,7 +624,7 @@ export function ReportsModule() {
             </button>
             <button onClick={handlePDF}
               className="flex items-center gap-1.5 rounded-btn bg-accent-cyan/10 border border-accent-cyan/20 px-3.5 py-2 text-[11px] font-bold text-accent-cyan hover:bg-accent-cyan/20 transition-all duration-200 cursor-pointer shadow-[0_2px_10px_rgba(34,211,238,0.15)]">
-              <Printer size={13} /> PDF
+              <FileDown size={13} /> PDF
             </button>
           </div>
         </div>

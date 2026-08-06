@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNestor } from "@/src/shared/context/nestor-context";
 import {
   CalendarDays,
-  UserPlus,
   Search,
   Users,
   Moon,
@@ -17,10 +16,8 @@ import {
   SlidersHorizontal,
   X,
   Check,
-  Trash2,
   Edit3,
 } from "lucide-react";
-import { RosterMemberModal } from "./roster-member-modal";
 import type { ShiftPreset, RosterMember } from "../types";
 
 export function ShiftRosterModule() {
@@ -32,7 +29,6 @@ export function ShiftRosterModule() {
     bulkAssignRosterShifts,
     saveRosterChanges,
     clearRosterMonth,
-    removeRosterMember,
     addShiftPreset,
     role,
     username,
@@ -62,7 +58,6 @@ export function ShiftRosterModule() {
   const [filterShiftCode, setFilterShiftCode] = useState("all");
 
   // Modals & Popovers state
-  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [editingCell, setEditingCell] = useState<{ employeeId: string; date: string } | null>(null);
 
   // Bulk assignment state
@@ -309,15 +304,6 @@ export function ShiftRosterModule() {
             </div>
           )}
 
-          {/* Add Team Member */}
-          {role === "admin" && (
-            <button
-              onClick={() => setIsAddMemberOpen(true)}
-              className="flex items-center gap-2 rounded-btn bg-gradient-to-r from-accent-cyan via-accent-blue to-accent-purple px-4 py-2.5 text-xs font-bold text-white shadow-glow hover:scale-105 transition-all uppercase tracking-wider cursor-pointer"
-            >
-              <UserPlus size={15} /> Add Team Member
-            </button>
-          )}
         </div>
       </motion.div>
 
@@ -596,21 +582,6 @@ export function ShiftRosterModule() {
                             ID: {member.employeeId}
                           </span>
                         </div>
-                        {role === "admin" && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (confirm(`Remove ${member.name} (ID: ${member.employeeId}) from shift roster?`)) {
-                                removeRosterMember(member.employeeId);
-                              }
-                            }}
-                            className="rounded p-1 text-text-soft opacity-60 hover:opacity-100 hover:text-danger hover:bg-danger/10 transition-all cursor-pointer"
-                            title="Remove Member from Roster"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
                       </div>
                     </td>
 
@@ -866,7 +837,6 @@ export function ShiftRosterModule() {
       </AnimatePresence>
 
       {/* Member Modal */}
-      <RosterMemberModal isOpen={isAddMemberOpen} onClose={() => setIsAddMemberOpen(false)} />
     </div>
   );
 }

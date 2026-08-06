@@ -38,3 +38,21 @@ export interface PersonalVaultEntry {
   createdAt: string;
   updatedAt: string;
 }
+
+export type VaultChangeRequestStatus = "pending" | "approved" | "rejected";
+
+/** A member's proposed new value for one field of a Team Vault credential set, pending admin review. */
+export interface VaultChangeRequest {
+  id: number;
+  userId: string;
+  requesterName: string;
+  entryId: string;     // VaultEntry.id this request targets
+  fieldId: string;     // VaultField.id within that entry
+  newValue: string;    // decrypted client-side; encrypted under the Team Vault key at rest
+  secureUrl?: string;  // optional secure link (e.g. a password-manager share link) in place of/alongside newValue
+  reason: string;
+  status: VaultChangeRequestStatus;
+  createdAt: string;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+}

@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useNestor } from "@/src/shared/context/nestor-context";
-import { Plus, Trash2, Shield, Settings2, User, Check, ChevronDown, ChevronUp, FolderKanban, CalendarDays, Paintbrush, Mail, Briefcase, FileCode } from "lucide-react";
+import { Plus, Trash2, Shield, Settings2, User, Check, ChevronDown, ChevronUp, FolderKanban, CalendarDays, Paintbrush, Mail, Briefcase, FileCode, KeyRound, ShieldAlert, LifeBuoy, TriangleAlert } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TimePicker } from "@/src/shared/components/ui/time-picker";
 import { supabase, isSupabaseConfigured } from "@/src/shared/lib/supabase";
+import { RecoveryCodeModal } from "@/src/shared/components/ui/recovery-code-modal";
 
 function formatTimeToAMPM(timeStr: string): string {
   if (!timeStr) return "";
@@ -77,14 +78,24 @@ export function SettingsPage() {
     addShiftPreset,
     removeShiftPreset,
 
+    // Password Vault security (admin-only)
+    masterPassword,
+    updateMasterPassword,
+    teamVaultRecoveryKitActive,
+    setupTeamVaultRecoveryKit,
+    recoverTeamVaultWithCode,
+    resetTeamVault,
+
     // Auth properties
     user,
     role,
     employeeId,
   } = useNestor();
 
+  const isAdmin = role === "admin";
+
   // Accordion State - defaulted to personal settings
-  const [activeSection, setActiveSection] = useState<"appearance" | "personal" | "tickets" | "oem-cases" | "tasks" | "calendar" | null>("personal");
+  const [activeSection, setActiveSection] = useState<"appearance" | "personal" | "tickets" | "oem-cases" | "tasks" | "calendar" | "vault-security" | null>("personal");
 
   // Inputs
   const [tempUsername, setTempUsername] = useState(username);
@@ -148,8 +159,115 @@ export function SettingsPage() {
     setPendingShifts((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const toggleSection = (section: "appearance" | "personal" | "tickets" | "oem-cases" | "tasks" | "calendar") => {
+  const toggleSection = (section: "appearance" | "personal" | "tickets" | "oem-cases" | "tasks" | "calendar" | "vault-security") => {
     setActiveSection(activeSection === section ? null : section);
+  };
+
+  // Team Vault master password change (admin-only — updateMasterPassword
+  // itself also refuses non-admins defensively, this is just the UI form)
+  const [oldMasterPin, setOldMasterPin] = useState("");
+  const [newMasterPin, setNewMasterPin] = useState("");
+  const [confirmMasterPin, setConfirmMasterPin] = useState("");
+  const [isSavingMasterPin, setIsSavingMasterPin] = useState(false);
+
+  const handleMasterPinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (oldMasterPin !== masterPassword) {
+      alert("Current team master password is incorrect.");
+      return;
+    }
+    if (!newMasterPin.trim()) return;
+    if (newMasterPin !== confirmMasterPin) {
+      alert("New password and confirmation do not match.");
+      return;
+    }
+    setIsSavingMasterPin(true);
+    try {
+      await updateMasterPassword(newMasterPin.trim());
+      setOldMasterPin("");
+      setNewMasterPin("");
+      setConfirmMasterPin("");
+    } finally {
+      setIsSavingMasterPin(false);
+    }
+  };
+
+  // Team Vault Recovery Kit
+  const [isSettingUpRecoveryKit, setIsSettingUpRecoveryKit] = useState(false);
+  const [revealedRecoveryCode, setRevealedRecoveryCode] = useState<string | null>(null);
+  const [recoveryCodeModalTitle, setRecoveryCodeModalTitle] = useState("");
+
+  const [showRecoverForm, setShowRecoverForm] = useState(false);
+  const [recoverCodeInput, setRecoverCodeInput] = useState("");
+  const [recoverNewPin, setRecoverNewPin] = useState("");
+  const [recoverConfirmPin, setRecoverConfirmPin] = useState("");
+  const [isRecovering, setIsRecovering] = useState(false);
+
+  const [showResetForm, setShowResetForm] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState("");
+  const [resetNewPin, setResetNewPin] = useState("");
+  const [resetConfirmPin, setResetConfirmPin] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleSetupRecoveryKit = async () => {
+    setIsSettingUpRecoveryKit(true);
+    try {
+      const code = await setupTeamVaultRecoveryKit();
+      if (code) {
+        setRecoveryCodeModalTitle("Team Vault Recovery Code");
+        setRevealedRecoveryCode(code);
+      }
+    } finally {
+      setIsSettingUpRecoveryKit(false);
+    }
+  };
+
+  const handleRecoverSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recoverCodeInput.trim() || !recoverNewPin.trim()) return;
+    if (recoverNewPin !== recoverConfirmPin) {
+      alert("New password and confirmation do not match.");
+      return;
+    }
+    setIsRecovering(true);
+    try {
+      const ok = await recoverTeamVaultWithCode(recoverCodeInput, recoverNewPin.trim());
+      if (ok) {
+        setShowRecoverForm(false);
+        setRecoverCodeInput("");
+        setRecoverNewPin("");
+        setRecoverConfirmPin("");
+      }
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetConfirmText.trim().toUpperCase() !== "RESET") {
+      alert('Type "RESET" to confirm — this permanently deletes every team credential set.');
+      return;
+    }
+    if (!resetNewPin.trim()) return;
+    if (resetNewPin !== resetConfirmPin) {
+      alert("New password and confirmation do not match.");
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const code = await resetTeamVault(resetNewPin.trim());
+      if (code) {
+        setShowResetForm(false);
+        setResetConfirmText("");
+        setResetNewPin("");
+        setResetConfirmPin("");
+        setRecoveryCodeModalTitle("New Team Vault Recovery Code");
+        setRevealedRecoveryCode(code);
+      }
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const handleUsernameSubmit = async (e: React.FormEvent) => {
@@ -932,7 +1050,274 @@ export function SettingsPage() {
             )}
           </AnimatePresence>
         </div>
+
+        {/* Section 6: Password Vault Security (Admin-only) */}
+        {isAdmin && (
+          <div className="rounded-card border overflow-hidden shadow-soft backdrop-blur-[18px] dark:border-white/5 dark:bg-card-bg">
+            <button
+              onClick={() => toggleSection("vault-security")}
+              className="w-full flex items-center justify-between p-5 text-left border-b border-transparent transition-all dark:hover:bg-white/5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-badge bg-accent-cyan/10 p-2 text-accent-cyan">
+                  <KeyRound size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-text-primary">Password Vault Security</h3>
+                  <p className="text-xs text-text-soft mt-0.5">Admin-only: manage the shared Team Vault master password</p>
+                </div>
+              </div>
+              {activeSection === "vault-security" ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
+
+            <AnimatePresence initial={false}>
+              {activeSection === "vault-security" && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="p-5 border-t border-slate-100 dark:border-white/5 bg-white/3 space-y-4"
+                >
+                  <div className="flex items-start gap-2 rounded-input border border-accent-cyan/20 bg-accent-cyan/5 p-3 text-xs text-text-soft leading-relaxed">
+                    <ShieldAlert size={15} className="text-accent-cyan flex-shrink-0 mt-0.5" />
+                    <span>
+                      This is the shared encryption passphrase that protects every credential in
+                      the Team Vault (Products/Clients tab of Password Vault). Changing it
+                      re-encrypts every existing team credential set automatically — every admin
+                      and member must be told the new password to keep viewing team credentials.
+                      This does not affect anyone's Personal Vault, which each user secures with
+                      their own independent PIN.
+                    </span>
+                  </div>
+
+                  <form onSubmit={handleMasterPinSubmit} className="grid gap-3 sm:grid-cols-2 items-end">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-soft mb-1.5">
+                        Current Master Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={oldMasterPin}
+                        onChange={(e) => setOldMasterPin(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-soft mb-1.5">
+                        New Master Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={newMasterPin}
+                        onChange={(e) => setNewMasterPin(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-soft mb-1.5">
+                        Confirm New Master Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        value={confirmMasterPin}
+                        onChange={(e) => setConfirmMasterPin(e.target.value)}
+                        className={inputCls}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSavingMasterPin}
+                      className="sm:col-span-2 rounded-btn bg-gradient-to-r from-accent-purple to-accent-cyan py-2.5 text-xs font-bold text-white shadow-glow hover:scale-[1.01] transition-all uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                    >
+                      {isSavingMasterPin ? "Re-encrypting Team Vault…" : "Update Team Master Password"}
+                    </button>
+                  </form>
+
+                  {/* ── Recovery Kit ── */}
+                  <div className="border-t border-slate-100 dark:border-white/5 pt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-text-soft flex items-center gap-1.5">
+                        <LifeBuoy size={13} /> Recovery Kit
+                      </h4>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider rounded-badge px-2 py-0.5 ${
+                        teamVaultRecoveryKitActive ? "bg-success/15 text-success" : "bg-text-soft/10 text-text-soft"
+                      }`}>
+                        {teamVaultRecoveryKitActive ? "Active" : "Not Set Up"}
+                      </span>
+                    </div>
+
+                    {!teamVaultRecoveryKitActive ? (
+                      <div className="space-y-2">
+                        <p className="text-xs text-text-soft leading-relaxed">
+                          Without a Recovery Kit, forgetting the Team Master Password means every
+                          team credential is permanently unrecoverable. Setting one up generates a
+                          one-time backup code that can restore access without losing any data.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleSetupRecoveryKit}
+                          disabled={isSettingUpRecoveryKit}
+                          className="rounded-btn border border-accent-cyan/30 bg-accent-cyan/10 px-3.5 py-2 text-xs font-bold text-accent-cyan hover:bg-accent-cyan/20 transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          {isSettingUpRecoveryKit ? "Setting up…" : "Set Up Recovery Kit"}
+                        </button>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-text-soft leading-relaxed">
+                        A Recovery Kit is active. If the Master Password is ever forgotten, use the
+                        recovery code (shown once, at setup) to regain access below.
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => { setShowRecoverForm((v) => !v); setShowResetForm(false); }}
+                        className="text-xs font-semibold text-accent-cyan hover:underline cursor-pointer"
+                      >
+                        Forgot the master password? Recover with code
+                      </button>
+                      <span className="text-text-soft text-xs">·</span>
+                      <button
+                        type="button"
+                        onClick={() => { setShowResetForm((v) => !v); setShowRecoverForm(false); }}
+                        className="text-xs font-semibold text-danger hover:underline cursor-pointer"
+                      >
+                        Lost both? Reset &amp; wipe (last resort)
+                      </button>
+                    </div>
+
+                    <AnimatePresence initial={false}>
+                      {showRecoverForm && (
+                        <motion.form
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          onSubmit={handleRecoverSubmit}
+                          className="space-y-2.5 rounded-input border border-accent-cyan/20 bg-accent-cyan/5 p-3 overflow-hidden"
+                        >
+                          <div>
+                            <label className="block text-xs font-semibold text-text-soft mb-1">Recovery Code</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+                              value={recoverCodeInput}
+                              onChange={(e) => setRecoverCodeInput(e.target.value)}
+                              className={`${inputCls} font-mono`}
+                            />
+                          </div>
+                          <div className="grid gap-2.5 sm:grid-cols-2">
+                            <div>
+                              <label className="block text-xs font-semibold text-text-soft mb-1">New Master Password</label>
+                              <input
+                                type="password"
+                                required
+                                value={recoverNewPin}
+                                onChange={(e) => setRecoverNewPin(e.target.value)}
+                                className={inputCls}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-text-soft mb-1">Confirm New Password</label>
+                              <input
+                                type="password"
+                                required
+                                value={recoverConfirmPin}
+                                onChange={(e) => setRecoverConfirmPin(e.target.value)}
+                                className={inputCls}
+                              />
+                            </div>
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={isRecovering}
+                            className="w-full rounded-btn bg-accent-cyan py-2 text-xs font-bold text-white uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                          >
+                            {isRecovering ? "Recovering…" : "Recover Team Vault"}
+                          </button>
+                        </motion.form>
+                      )}
+                    </AnimatePresence>
+
+                    <AnimatePresence initial={false}>
+                      {showResetForm && (
+                        <motion.form
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          onSubmit={handleResetSubmit}
+                          className="space-y-2.5 rounded-input border border-danger/30 bg-danger/5 p-3 overflow-hidden"
+                        >
+                          <div className="flex items-start gap-2 text-xs text-danger">
+                            <TriangleAlert size={14} className="flex-shrink-0 mt-0.5" />
+                            <span>
+                              This permanently <strong>deletes every Team Vault credential set</strong>
+                              — they were encrypted under the forgotten password and cannot be
+                              salvaged. Only use this if the recovery code is also lost.
+                            </span>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-text-soft mb-1">
+                              Type RESET to confirm
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={resetConfirmText}
+                              onChange={(e) => setResetConfirmText(e.target.value)}
+                              className={inputCls}
+                            />
+                          </div>
+                          <div className="grid gap-2.5 sm:grid-cols-2">
+                            <div>
+                              <label className="block text-xs font-semibold text-text-soft mb-1">New Master Password</label>
+                              <input
+                                type="password"
+                                required
+                                value={resetNewPin}
+                                onChange={(e) => setResetNewPin(e.target.value)}
+                                className={inputCls}
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-semibold text-text-soft mb-1">Confirm New Password</label>
+                              <input
+                                type="password"
+                                required
+                                value={resetConfirmPin}
+                                onChange={(e) => setResetConfirmPin(e.target.value)}
+                                className={inputCls}
+                              />
+                            </div>
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={isResetting}
+                            className="w-full rounded-btn bg-danger py-2 text-xs font-bold text-white uppercase tracking-wider cursor-pointer disabled:opacity-50"
+                          >
+                            {isResetting ? "Resetting…" : "Permanently Reset Team Vault"}
+                          </button>
+                        </motion.form>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
+
+      <RecoveryCodeModal
+        code={revealedRecoveryCode}
+        title={recoveryCodeModalTitle}
+        onClose={() => setRevealedRecoveryCode(null)}
+      />
     </div>
   );
 }

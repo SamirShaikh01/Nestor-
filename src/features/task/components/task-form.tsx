@@ -35,7 +35,6 @@ const inputCls = "w-full rounded-input border border-slate-200 dark:border-white
 export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit }: TaskFormProps) {
   const { categories } = useNestor();
   const [sessions, setSessions] = useState<string[]>(taskToEdit?.sessions || []);
-  const [newSession, setNewSession] = useState("");
 
   const defaultCategory = taskToEdit?.category || categories[0] || "Operations";
 
@@ -110,20 +109,6 @@ export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit }: TaskFormProp
     reset();
     setSessions([]);
     onClose();
-  };
-
-  const addSessionBlock = () => {
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]-([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (timeRegex.test(newSession)) {
-      setSessions([...sessions, newSession]);
-      setNewSession("");
-    } else {
-      alert("Invalid session format. Use HH:MM-HH:MM (e.g. 09:00-10:15)");
-    }
-  };
-
-  const removeSessionBlock = (index: number) => {
-    setSessions(sessions.filter((_, i) => i !== index));
   };
 
   return (
@@ -248,47 +233,6 @@ export function TaskForm({ isOpen, onClose, onSubmit, taskToEdit }: TaskFormProp
                   rows={3}
                   className={`${inputCls} resize-none`}
                 />
-              </div>
-
-              {/* Sessions List */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-text-soft">
-                  Work Sessions
-                </label>
-                
-                {/* Manual session builder */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newSession}
-                    onChange={(e) => setNewSession(e.target.value)}
-                    className="flex-1 rounded-input border border-slate-200 dark:border-white/10 bg-white dark:bg-[#0d1424] px-3.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:border-accent-cyan"
-                  />
-                  <button
-                    type="button"
-                    onClick={addSessionBlock}
-                    className="rounded-btn bg-accent-cyan/10 border border-accent-cyan/20 hover:bg-accent-cyan/20 px-3 text-xs font-medium text-accent-cyan transition-colors"
-                  >
-                    + Add Session
-                  </button>
-                </div>
-
-                {sessions.length > 0 && (
-                  <ul className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
-                    {sessions.map((session, idx) => (
-                      <li key={idx} className="flex items-center justify-between rounded-input border border-white/5 bg-white/5 px-3 py-1.5 text-xs text-text-muted">
-                        <span className="font-mono">{session}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeSessionBlock(idx)}
-                          className="text-danger hover:text-danger-light font-medium"
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
 
               {/* Action Buttons */}

@@ -43,6 +43,7 @@ import {
   Pie,
 } from "recharts";
 import { useNestor } from "@/src/shared/context/nestor-context";
+import { isSupabaseConfigured } from "@/src/shared/lib/supabase";
 import { getCategoryColorBadge, getShiftBadgeClasses } from "@/src/shared/lib/theme-utils";
 import { TaskForm } from "../../task/components/task-form";
 import { TicketForm } from "../../ticket/components/ticket-form";
@@ -118,6 +119,7 @@ export function DashboardOverview({
     products,
     categories,
     oemCases,
+    employeeId,
   } = useNestor();
 
   // SSR hydration safety
@@ -141,17 +143,26 @@ export function DashboardOverview({
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isTicketFormOpen, setIsTicketFormOpen] = useState(false);
 
-  // Quick Notes persistence in localStorage
-  const [quickNote, setQuickNote] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nestor_dashboard_notes") || "";
-    }
-    return "";
-  });
+  // Quick Notes persistence in localStorage — scoped per user (by employeeId)
+  // so one account's notes never show up for a different account signed into
+  // the same browser. When Supabase is configured, employeeId loads
+  // asynchronously after the profile fetch, so the initial value can't be
+  // read synchronously at mount (there's no user to scope it to yet) — it's
+  // loaded once employeeId resolves instead.
+  const [quickNote, setQuickNote] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isSupabaseConfigured && !employeeId) return; // still waiting on the profile fetch
+    const key = `nestor_dashboard_notes_${employeeId || "local"}`;
+    setQuickNote(localStorage.getItem(key) || "");
+  }, [employeeId]);
 
   const handleNoteChange = (val: string) => {
     setQuickNote(val);
-    localStorage.setItem("nestor_dashboard_notes", val);
+    if (typeof window === "undefined") return;
+    if (isSupabaseConfigured && !employeeId) return; // don't write under a not-yet-known scope
+    localStorage.setItem(`nestor_dashboard_notes_${employeeId || "local"}`, val);
   };
 
   // Date constants

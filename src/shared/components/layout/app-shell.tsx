@@ -5,6 +5,7 @@ import { BarChart3, CalendarRange, LayoutGrid, Settings2, Workflow, Ticket, Shie
 import { ReactNode, useState, useEffect } from "react";
 import { useNestor } from "@/src/shared/context/nestor-context";
 import { supabase, isSupabaseConfigured } from "@/src/shared/lib/supabase";
+import { ToastContainer } from "@/src/shared/components/ui/toast";
 
 const navigation = [
   { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -123,6 +124,7 @@ export function AppShell({ children, activeView, onViewChange }: AppShellProps) 
 
   return (
     <div className="min-h-screen text-text-secondary">
+      <ToastContainer />
 
       {/* ── TABLET / MOBILE: Top Navbar ── */}
       <div className="lg:hidden sticky top-0 z-50 flex flex-col gap-0 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">

@@ -22,16 +22,3 @@ export interface RosterAssignment {
   shiftCode: string;      // e.g. "S1", "G", "E", "N", "WO", "L"
   notes?: string;
 }
-
-export interface ShiftSwapRequest {
-  id: string;
-  requesterId: string;
-  requesterName: string;
-  requestedDate: string;
-  targetMemberId: string;
-  targetMemberName: string;
-  targetDate: string;
-  status: "Pending" | "Approved" | "Rejected";
-  reason?: string;
-  createdAt: string;
-}

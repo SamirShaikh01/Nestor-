@@ -302,8 +302,15 @@ export function CalendarModule() {
     };
   };
 
+  // Only the true offline/no-backend demo mode falls back to the legacy
+  // in-memory `shiftAssignments` map. When Supabase IS configured but
+  // `employeeId` just hasn't finished loading yet (async profile fetch), we
+  // must NOT fall back to that map — it's unscoped, shared browser-tab state
+  // that can carry over from a previous account's session and briefly (or
+  // permanently, if employeeId never resolves) show someone else's shifts.
   const getResolvedShiftName = (dateStr: string): string => {
-    if (isSupabaseConfigured && employeeId) {
+    if (isSupabaseConfigured) {
+      if (!employeeId) return ""; // profile still loading — show nothing, not stale data
       const code = rosterAssignments[`${employeeId}_${dateStr}`];
       if (code) {
         if (code === "WO") return "Week Off";
@@ -325,7 +332,8 @@ export function CalendarModule() {
 
     const prefix = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`;
 
-    if (isSupabaseConfigured && employeeId) {
+    if (isSupabaseConfigured) {
+      if (!employeeId) return { daysWorked: 0, weekOffs: 0, leaves: 0 }; // profile still loading
       const totalDays = new Date(selectedYear, selectedMonth + 1, 0).getDate();
       for (let day = 1; day <= totalDays; day++) {
         const dd = String(day).padStart(2, "0");
@@ -489,8 +497,8 @@ export function CalendarModule() {
                   // Find in/out times for display
                   let displayTimings = "";
                   if (shiftName && shiftName !== "Leave" && shiftName !== "Week Off") {
-                    if (isSupabaseConfigured && employeeId) {
-                      const code = rosterAssignments[`${employeeId}_${cell.dateKey}`];
+                    if (isSupabaseConfigured) {
+                      const code = employeeId ? rosterAssignments[`${employeeId}_${cell.dateKey}`] : undefined;
                       const preset = shiftPresets.find((p) => p.code === code);
                       if (preset) {
                         displayTimings = preset.timeRange;

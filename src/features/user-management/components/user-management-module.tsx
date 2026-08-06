@@ -257,7 +257,14 @@ export function UserManagementModule() {
         .eq("id", userId);
 
       if (error) {
-        setErrorMsg(error.message);
+        // 23505 = unique_violation (profiles_employee_id_unique) — this
+        // Employee ID is already mapped to a different account, which would
+        // otherwise silently merge that account's shift roster into this one.
+        setErrorMsg(
+          error.code === "23505"
+            ? `Employee ID "${tempEmpId.trim()}" is already assigned to another user. Each user must have a unique Employee ID.`
+            : error.message
+        );
       } else {
         setSuccessMsg("Employee ID mapping saved successfully.");
         setEditingId(null);
