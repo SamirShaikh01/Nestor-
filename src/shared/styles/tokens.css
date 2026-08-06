@@ -45,6 +45,29 @@
   --space-5: 32px;
 }
 
+/* ── Accent Theme presets ──
+   Swaps just the two accent hues used throughout the app (gradients,
+   highlights, focus rings). Purely additive — doesn't touch layout, spacing,
+   or the dark-mode-only color scheme above. Applied via a `data-accent`
+   attribute on <html>, set from Settings → Appearance. */
+:root[data-accent="blue"] {
+  --color-accent-purple: #3b82f6;
+  --color-accent-cyan: #14b8a6;
+  --shadow-glow: 0 16px 36px -8px rgba(59, 130, 246, 0.32), 0 4px 12px -4px rgba(59, 130, 246, 0.16);
+}
+
+:root[data-accent="emerald"] {
+  --color-accent-purple: #10b981;
+  --color-accent-cyan: #84cc16;
+  --shadow-glow: 0 16px 36px -8px rgba(16, 185, 129, 0.32), 0 4px 12px -4px rgba(16, 185, 129, 0.16);
+}
+
+:root[data-accent="rose"] {
+  --color-accent-purple: #f43f5e;
+  --color-accent-cyan: #f59e0b;
+  --shadow-glow: 0 16px 36px -8px rgba(244, 63, 94, 0.32), 0 4px 12px -4px rgba(244, 63, 94, 0.16);
+}
+
 
 body {
   background:

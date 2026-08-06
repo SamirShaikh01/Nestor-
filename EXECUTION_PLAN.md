@@ -623,6 +623,41 @@ the Supabase table) is still pending on your end.
 
 ---
 
+## Phase 10 — Dashboard redesign ✅ DONE
+
+Requested: greeting, global search, quick-action + date-filter toolbar, category task cards,
+ticket status cards, and an overview of the whole application — "professional touch and UI/UX."
+Most of these already existed in
+[dashboard-overview.tsx](src/features/dashboard/components/dashboard-overview.tsx); the gap was
+that nothing on the dashboard represented OEM Cases, Shift Roster, or Password Vault at all, and
+the search trigger was a bare icon rather than a real search affordance. Kept every existing
+`useMemo` data computation as-is (all correct, already tested) and focused the redesign on the
+presentation layer and the genuinely missing pieces:
+
+- **Header**: added a user-initial avatar badge next to the greeting; replaced the icon-only
+  search button with a labeled "Search Nestor…" pill (with a working ⌘K/Ctrl+K shortcut — new
+  `keydown` listener, not just a decorative hint) that opens the existing fuzzy search modal
+  (tasks/tickets/OEM cases were already searched together, just needed a clearer entry point).
+- **New "Application Overview" section** — one clickable card per module (Task Log, Ticket Log,
+  OEM Case Log, Shift Roster, Password Vault, Reports) with a live count and a click-through via
+  `onViewChange`, computed in a new `moduleOverview` useMemo. This is the piece that actually
+  satisfies "showcase overview of entire application" — nothing on the dashboard previously
+  surfaced OEM Cases, Shift Roster, or Password Vault at all.
+- **New "OEM Case Status Overview" row** (Total/Pending From OEM/Escalated/Resolved), mirroring the
+  existing Ticket Status row and using the same status-substring logic as the OEM Case module's own
+  metrics (`oemStats` useMemo) so the two numbers never disagree.
+- Added section headings ("Work by Category", "Ticket Status Overview", etc.) above each card grid
+  for clearer visual hierarchy — previously the grids ran together with no labels.
+
+**Verified**: `npx tsc --noEmit` passes clean. Ran the dev server, logged in via the dev quick-login
+(Member 1), confirmed all new sections render with live data and no console errors, and confirmed
+the OEM Case Log overview card's click-through actually navigates to that module (verified via a
+direct DOM click since this sandbox's ref-based click coordinates weren't resolving correctly —
+the interaction itself worked). Full screenshot-based visual review is still pending on your end
+since this session's browser pane wasn't displayed for a screenshot.
+
+---
+
 ## Product decisions (resolved)
 
 - **Roster membership**: derived entirely from User Management (active profiles) — no separate

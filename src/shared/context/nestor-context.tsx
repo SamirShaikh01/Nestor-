@@ -121,10 +121,6 @@ interface NestorContextType {
   addStatusUpdate: (status: string) => void;
   removeStatusUpdate: (status: string) => void;
 
-  teamMembers: string[];
-  addTeamMember: (name: string) => void;
-  removeTeamMember: (name: string) => void;
-
   // Centralized Shift Roster State & Actions
   rosterMembers: RosterMember[];
   rosterAssignments: Record<string, string>;
@@ -185,6 +181,8 @@ interface NestorContextType {
   // Font configuration
   fontFamily: string;
   setFontFamily: (font: string) => void;
+  accentTheme: string;
+  setAccentTheme: (theme: string) => void;
 }
 
 export interface ShiftRequest {
@@ -291,7 +289,6 @@ const DEFAULT_SHIFTS: ShiftType[] = [
 const DEFAULT_PRODUCT_CATEGORIES = ["AV", "EDR", "XDR", "PAM", "DAM", "WAF", "DLP", "SIEM"];
 const DEFAULT_CASE_TYPES = ["Feature Request", "Hash Blocking", "Issue", "Service Request", "Other"];
 const DEFAULT_STATUS_UPDATES = ["Pending From OEM", "Pending Customer", "Issue Resolved", "Escalated", "In Progress"];
-const DEFAULT_TEAM_MEMBERS = ["Samir", "Admin John", "SOC Lead Mary", "Security Lead Sam", "User"];
 
 export function NestorProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -455,6 +452,29 @@ export function NestorProvider({ children }: { children: ReactNode }) {
     document.body.style.fontFamily = familyStr;
   }, [fontFamily]);
 
+  // Accent theme — swaps the --color-accent-purple/--color-accent-cyan CSS
+  // variables (defined per-value in tokens.css under [data-accent="..."])
+  // that drive nearly every gradient/highlight in the app, without touching
+  // layout or the (currently forced-dark-only) light/dark mode.
+  const [accentTheme, setAccentThemeState] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nestor_accent_theme") || "default";
+    }
+    return "default";
+  });
+
+  const setAccentTheme = (theme: string) => {
+    setAccentThemeState(theme);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("nestor_accent_theme", theme);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    document.documentElement.setAttribute("data-accent", accentTheme);
+  }, [accentTheme]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const root = window.document.documentElement;
@@ -492,8 +512,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   const [caseTypes, setCaseTypes] = useState<string[]>(DEFAULT_CASE_TYPES);
 
   const [statusUpdates, setStatusUpdates] = useState<string[]>(DEFAULT_STATUS_UPDATES);
-
-  const [teamMembers, setTeamMembers] = useState<string[]>(DEFAULT_TEAM_MEMBERS);
 
   // Centralized Shift Roster states
   const [rosterMembers, setRosterMembers] = useState<RosterMember[]>(initialRosterMembers);
@@ -1787,18 +1805,6 @@ export function NestorProvider({ children }: { children: ReactNode }) {
           setStatusUpdates(updated);
         },
 
-        teamMembers,
-        addTeamMember: (name) => {
-          const trimmed = name.trim();
-          if (!trimmed || teamMembers.includes(trimmed)) return;
-          const updated = [...teamMembers, trimmed];
-          setTeamMembers(updated);
-        },
-        removeTeamMember: (name) => {
-          const updated = teamMembers.filter((m) => m !== name);
-          setTeamMembers(updated);
-        },
-
         // Shift Roster
         rosterMembers,
         rosterAssignments,
@@ -2146,10 +2152,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
                 const oldPassphraseKey = await deriveVaultKey(masterPassword, "team");
                 const dek = await unwrapDataEncryptionKey(oldPassphraseKey, wrapRow.wrapped_dek_passphrase as EncryptedEnvelope);
                 const newPassphraseKey = await deriveVaultKey(trimmed, "team");
-                const newWrap = await wrapDataEncryptionKey(newPassphraseKey, dek);
+                const rewrappedDek = await wrapDataEncryptionKey(newPassphraseKey, dek);
                 const { error: updateErr } = await supabase
                   .from("vault_key_wraps")
-                  .update({ wrapped_dek_passphrase: newWrap, updated_at: new Date().toISOString() })
+                  .update({ wrapped_dek_passphrase: rewrappedDek, updated_at: new Date().toISOString() })
                   .eq("id", "team");
                 if (updateErr) throw updateErr;
 
@@ -2213,10 +2219,10 @@ export function NestorProvider({ children }: { children: ReactNode }) {
                 const oldPassphraseKey = await deriveVaultKey(personalVaultPin, `personal:${employeeId || "local"}`);
                 const dek = await unwrapDataEncryptionKey(oldPassphraseKey, wrapRow.wrapped_dek_passphrase as EncryptedEnvelope);
                 const newPassphraseKey = await deriveVaultKey(trimmed, `personal:${employeeId || "local"}`);
-                const newWrap = await wrapDataEncryptionKey(newPassphraseKey, dek);
+                const rewrappedDek = await wrapDataEncryptionKey(newPassphraseKey, dek);
                 const { error: updateErr } = await supabase
                   .from("vault_key_wraps")
-                  .update({ wrapped_dek_passphrase: newWrap, updated_at: new Date().toISOString() })
+                  .update({ wrapped_dek_passphrase: rewrappedDek, updated_at: new Date().toISOString() })
                   .eq("id", user.id);
                 if (updateErr) throw updateErr;
 
@@ -2390,11 +2396,11 @@ export function NestorProvider({ children }: { children: ReactNode }) {
             const recoveryKey = await deriveVaultKey(trimmedCode, "team-recovery");
             const dek = await unwrapDataEncryptionKey(recoveryKey, wrapRow.wrapped_dek_recovery as EncryptedEnvelope);
             const newPassphraseKey = await deriveVaultKey(trimmedNewPass, "team");
-            const newWrap = await wrapDataEncryptionKey(newPassphraseKey, dek);
+            const rewrappedDek = await wrapDataEncryptionKey(newPassphraseKey, dek);
 
             const { error: updateErr } = await supabase
               .from("vault_key_wraps")
-              .update({ wrapped_dek_passphrase: newWrap, updated_at: new Date().toISOString() })
+              .update({ wrapped_dek_passphrase: rewrappedDek, updated_at: new Date().toISOString() })
               .eq("id", "team");
             if (updateErr) throw updateErr;
 
@@ -2432,11 +2438,11 @@ export function NestorProvider({ children }: { children: ReactNode }) {
             const recoveryKey = await deriveVaultKey(trimmedCode, `personal-recovery:${employeeId || "local"}`);
             const dek = await unwrapDataEncryptionKey(recoveryKey, wrapRow.wrapped_dek_recovery as EncryptedEnvelope);
             const newPassphraseKey = await deriveVaultKey(trimmedNewPin, `personal:${employeeId || "local"}`);
-            const newWrap = await wrapDataEncryptionKey(newPassphraseKey, dek);
+            const rewrappedDek = await wrapDataEncryptionKey(newPassphraseKey, dek);
 
             const { error: updateErr } = await supabase
               .from("vault_key_wraps")
-              .update({ wrapped_dek_passphrase: newWrap, updated_at: new Date().toISOString() })
+              .update({ wrapped_dek_passphrase: rewrappedDek, updated_at: new Date().toISOString() })
               .eq("id", user.id);
             if (updateErr) throw updateErr;
 
@@ -2986,6 +2992,8 @@ export function NestorProvider({ children }: { children: ReactNode }) {
 
         fontFamily,
         setFontFamily,
+        accentTheme,
+        setAccentTheme,
       }}
     >
       {children}

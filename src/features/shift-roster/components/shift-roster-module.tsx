@@ -141,8 +141,16 @@ export function ShiftRosterModule() {
     return members;
   }, [rosterMembers, search, filterShiftCode, daysInMonth, rosterAssignments, username]);
 
-  // Today's date string
-  const todayStr = new Date().toISOString().split("T")[0];
+  // Today's date string — must be the LOCAL calendar date, not UTC. Using
+  // toISOString() here previously computed the UTC date, which is a day
+  // behind local time for part of the day in timezones ahead of UTC (e.g.
+  // IST) — so this card was looking up "today's" roster assignment under
+  // yesterday's date and silently fell back to the default "G" (General)
+  // shift, even for someone actually rostered on a different shift today.
+  const todayStr = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
 
   // Today's Shifts summary for the cards
   const shiftsToday = useMemo(() => {
@@ -159,7 +167,11 @@ export function ShiftRosterModule() {
     });
 
     rosterMembers.forEach((m) => {
-      const shiftCode = rosterAssignments[`${m.employeeId}_${todayStr}`] || "G";
+      const key = `${m.employeeId}_${todayStr}`;
+      // Mirror the matrix cells' own resolution order (pendingChanges wins
+      // over the committed rosterAssignments) so an admin editing today's
+      // shift sees this card update immediately, not only after Publish.
+      const shiftCode = pendingChanges[key] ?? rosterAssignments[key] ?? "G";
       if (shiftCounts[shiftCode]) {
         shiftCounts[shiftCode].count++;
         shiftCounts[shiftCode].members.push(m.name);
@@ -167,7 +179,7 @@ export function ShiftRosterModule() {
     });
 
     return Object.values(shiftCounts).filter(s => s.count > 0);
-  }, [rosterMembers, rosterAssignments, shiftPresets, todayStr]);
+  }, [rosterMembers, rosterAssignments, pendingChanges, shiftPresets, todayStr]);
 
   // Quick lookup helper for shift preset
   const getShiftPreset = (code: string): ShiftPreset => {

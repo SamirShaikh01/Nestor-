@@ -26,6 +26,12 @@ import {
   CalendarDays,
   Bookmark,
   ChevronDown,
+  Workflow,
+  CalendarRange,
+  KeyRound,
+  BarChart3,
+  ArrowUpRight,
+  LayoutGrid,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useMemo, useState, useCallback, useEffect } from "react";
@@ -116,10 +122,14 @@ export function DashboardOverview({
     pauseTimer,
     stopTimer,
     shiftAssignments,
+    rosterAssignments,
+    shiftPresets,
     products,
     categories,
     oemCases,
     employeeId,
+    vaultProducts,
+    shiftRequests,
   } = useNestor();
 
   // SSR hydration safety
@@ -142,6 +152,19 @@ export function DashboardOverview({
   const [searchQuery, setSearchQuery] = useState("");
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isTicketFormOpen, setIsTicketFormOpen] = useState(false);
+
+  // Cmd/Ctrl+K opens global search from anywhere on the dashboard.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchQuery("");
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   // Quick Notes persistence in localStorage — scoped per user (by employeeId)
   // so one account's notes never show up for a different account signed into
@@ -248,6 +271,79 @@ export function DashboardOverview({
       totalHours,
     };
   }, [filteredTasks, filteredTickets]);
+
+  // OEM Case status breakdown — same substring matching the OEM Case module
+  // itself uses for its own metrics tiles, so the two stay consistent.
+  const oemStats = useMemo(() => {
+    const total = oemCases.length;
+    const pendingFromOem = oemCases.filter((c) => (c.statusUpdate || "").toLowerCase().includes("pending from oem")).length;
+    const pendingCustomer = oemCases.filter((c) => (c.statusUpdate || "").toLowerCase().includes("pending customer")).length;
+    const escalated = oemCases.filter((c) => (c.statusUpdate || "").toLowerCase().includes("escalated")).length;
+    const resolved = oemCases.filter((c) => (c.statusUpdate || "").toLowerCase().includes("resolved")).length;
+    return { total, pendingFromOem, pendingCustomer, escalated, resolved };
+  }, [oemCases]);
+
+  // Whole-application overview — one glanceable count per module, each
+  // navigable, so the dashboard actually surfaces the full app, not just
+  // Tasks/Tickets.
+  const moduleOverview = useMemo(() => {
+    const vaultEntryCount = vaultProducts.reduce(
+      (sum, p) => sum + p.clients.reduce((s, c) => s + c.entries.length, 0),
+      0
+    );
+    const pendingShiftRequests = shiftRequests.filter((r) => r.status === "pending").length;
+
+    return [
+      {
+        id: "tasks" as ViewId,
+        label: "Task Log",
+        value: stats.totalK,
+        sub: `${stats.pendingK} pending`,
+        icon: Workflow,
+        accent: "text-accent-purple bg-accent-purple/10 border-accent-purple/20",
+      },
+      {
+        id: "tickets" as ViewId,
+        label: "Ticket Log",
+        value: stats.totalT,
+        sub: `${stats.openT} open`,
+        icon: TicketIcon,
+        accent: "text-accent-cyan bg-accent-cyan/10 border-accent-cyan/20",
+      },
+      {
+        id: "oem-cases" as ViewId,
+        label: "OEM Case Log",
+        value: oemStats.total,
+        sub: `${oemStats.total - oemStats.resolved} open`,
+        icon: ShieldCheck,
+        accent: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+      },
+      {
+        id: "shift-roster" as ViewId,
+        label: "Shift Roster",
+        value: pendingShiftRequests,
+        sub: pendingShiftRequests === 1 ? "request pending" : "requests pending",
+        icon: CalendarRange,
+        accent: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+      },
+      {
+        id: "password-vault" as ViewId,
+        label: "Password Vault",
+        value: vaultEntryCount,
+        sub: "credential sets",
+        icon: KeyRound,
+        accent: "text-pink-500 bg-pink-500/10 border-pink-500/20",
+      },
+      {
+        id: "reports" as ViewId,
+        label: "Reports",
+        value: null,
+        sub: "export & analyze",
+        icon: BarChart3,
+        accent: "text-sky-500 bg-sky-500/10 border-sky-500/20",
+      },
+    ];
+  }, [stats, oemStats, vaultProducts, shiftRequests]);
 
   const dateRangeLabel = useMemo(() => {
     const monthsShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -367,10 +463,38 @@ export function DashboardOverview({
     return greeting;
   }, [stats, displayUsername, globalFilter]);
 
-  // Tomorrow's shift resolution
-  const tomorrowShift = useMemo(() => {
-    return shiftAssignments[tomorrowStr] || null;
-  }, [shiftAssignments, tomorrowStr]);
+  // Resolves a date to its assigned shift. Mirrors calendar-module.tsx's
+  // getResolvedShiftName/displayTimings: the real, working system is
+  // rosterAssignments + shiftPresets (keyed by employeeId), NOT the legacy
+  // shiftAssignments local map — that map has no Supabase loader and was the
+  // root cause of "Tomorrow's Shift" always showing "No shift assigned yet"
+  // even when the admin had actually assigned one (see docs/decisions.md
+  // ADR-017). It's kept only as the true offline/no-backend-mode fallback.
+  const resolveShiftForDate = useCallback(
+    (dateStr: string): { shiftName: string; timeRange: string; note?: string } | null => {
+      if (isSupabaseConfigured) {
+        if (!employeeId) return null; // profile still loading
+        const code = rosterAssignments[`${employeeId}_${dateStr}`];
+        if (!code) return null;
+        if (code === "WO") return { shiftName: "Week Off", timeRange: "" };
+        if (code === "L") return { shiftName: "Leave", timeRange: "" };
+        const preset = shiftPresets.find((p) => p.code === code);
+        if (!preset) return null;
+        return { shiftName: preset.name, timeRange: preset.timeRange };
+      }
+      const local = shiftAssignments[dateStr];
+      if (!local) return null;
+      return {
+        shiftName: local.shiftName,
+        timeRange: local.inTime && local.outTime ? `${local.inTime} - ${local.outTime}` : "",
+        note: local.note,
+      };
+    },
+    [rosterAssignments, shiftPresets, shiftAssignments, employeeId]
+  );
+
+  const todayShift = useMemo(() => resolveShiftForDate(todayStr), [resolveShiftForDate, todayStr]);
+  const tomorrowShift = useMemo(() => resolveShiftForDate(tomorrowStr), [resolveShiftForDate, tomorrowStr]);
 
   // Active Task for "Continue Work" panel
   const activeTask = useMemo(() => {
@@ -794,25 +918,37 @@ export function DashboardOverview({
         variants={itemVariants}
         className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-border pb-6"
       >
-        <div>
-          <h1 suppressHydrationWarning className="text-3xl font-extrabold tracking-tight text-text-primary">
-            Welcome back, {displayUsername} 👋
-          </h1>
-          <p suppressHydrationWarning className="mt-1 text-sm text-text-muted font-medium">{isMounted ? todayFormattedDate : ""}</p>
+        <div className="flex items-center gap-3.5">
+          <div
+            suppressHydrationWarning
+            className="hidden sm:flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-purple to-accent-cyan text-lg font-extrabold text-white shadow-glow select-none"
+          >
+            {displayUsername.trim().charAt(0).toUpperCase() || "N"}
+          </div>
+          <div>
+            <h1 suppressHydrationWarning className="text-3xl font-extrabold tracking-tight text-text-primary">
+              Welcome back, {displayUsername} 👋
+            </h1>
+            <p suppressHydrationWarning className="mt-1 text-sm text-text-muted font-medium">{isMounted ? todayFormattedDate : ""}</p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Pop-up Search Trigger Icon */}
+          {/* Global search — one bar for tasks, tickets, and OEM cases */}
           <button
             type="button"
             onClick={() => {
               setSearchQuery("");
               setIsSearchOpen(true);
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-btn bg-gradient-to-r from-accent-cyan to-accent-blue text-white shadow-[0_4px_14px_rgba(6,182,212,0.35)] hover:scale-105 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 cursor-pointer"
-            title="Search tasks & tickets"
+            className="group flex items-center gap-2.5 rounded-btn border border-border bg-white/5 pl-3.5 pr-3 py-2.5 text-xs font-medium text-text-muted hover:border-accent-cyan/40 hover:text-text-primary hover:bg-white/10 transition-all duration-200 cursor-pointer w-full sm:w-56"
+            title="Search tasks, tickets & OEM cases"
           >
-            <Search size={16} strokeWidth={2.5} />
+            <Search size={15} strokeWidth={2.5} className="text-accent-cyan flex-shrink-0" />
+            <span className="truncate">Search Nestor…</span>
+            <kbd className="ml-auto hidden md:inline-block rounded border border-border bg-white/5 px-1.5 py-0.5 text-[9px] font-bold text-text-soft group-hover:text-accent-cyan">
+              ⌘K
+            </kbd>
           </button>
 
           {/* Quick Actions */}
@@ -943,13 +1079,13 @@ export function DashboardOverview({
               </button>
 
               <h2 className="text-lg font-semibold tracking-tight text-text-primary mb-4 flex items-center gap-2">
-                <Search size={18} className="text-accent-cyan" /> Search Logs
+                <Search size={18} className="text-accent-cyan" /> Search Nestor
               </h2>
 
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Fuzzy search tasks, tickets, comments..."
+                  placeholder="Search tasks, tickets, OEM cases, comments..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full rounded-input border border-border bg-[#0f172a]/4 dark:bg-white/5 pl-4 pr-10 py-3 text-sm text-text-primary outline-none focus:border-accent-cyan focus:shadow-[0_0_15px_rgba(34,211,238,0.15)] transition-all"
@@ -1050,92 +1186,193 @@ export function DashboardOverview({
             </p>
           </div>
 
-          {/* Tomorrow's Shift info */}
-          <div className="rounded-input border border-border bg-white/5 p-3 min-w-[200px] flex-shrink-0 backdrop-blur-[6px]">
-            <span className="text-[10px] font-bold text-text-soft uppercase block tracking-wider">Tomorrow&apos;s Shift</span>
-            {!isMounted ? (
-              <p className="text-xs font-semibold text-text-muted mt-1.5 italic">Loading...</p>
-            ) : tomorrowShift ? (
-              <div className="mt-1.5">
-                <span className={`inline-block rounded-badge px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${getShiftBadgeClasses(tomorrowShift.shiftName)}`}>
-                  {tomorrowShift.shiftName}
-                </span>
-                <p className="text-[10px] text-text-muted mt-1 font-semibold">Timings: {tomorrowShift.inTime} - {tomorrowShift.outTime}</p>
-                {tomorrowShift.note && (
-                  <p className="text-[9px] italic text-text-soft mt-1 border-t border-border pt-1 truncate" title={tomorrowShift.note}>
-                    Note: {tomorrowShift.note}
-                  </p>
+          {/* Today's + Tomorrow's Shift info */}
+          <div className="grid grid-cols-2 gap-3 flex-shrink-0">
+            {[
+              { label: "Today's Shift", shift: todayShift },
+              { label: "Tomorrow's Shift", shift: tomorrowShift },
+            ].map(({ label, shift }) => (
+              <div key={label} className="rounded-input border border-border bg-white/5 p-3 min-w-[170px] backdrop-blur-[6px]">
+                <span className="text-[10px] font-bold text-text-soft uppercase block tracking-wider">{label}</span>
+                {!isMounted ? (
+                  <p className="text-xs font-semibold text-text-muted mt-1.5 italic">Loading...</p>
+                ) : shift ? (
+                  <div className="mt-1.5">
+                    <span className={`inline-block rounded-badge px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${getShiftBadgeClasses(shift.shiftName)}`}>
+                      {shift.shiftName}
+                    </span>
+                    {shift.timeRange && (
+                      <p className="text-[10px] text-text-muted mt-1 font-semibold">Timings: {shift.timeRange}</p>
+                    )}
+                    {shift.note && (
+                      <p className="text-[9px] italic text-text-soft mt-1 border-t border-border pt-1 truncate" title={shift.note}>
+                        Note: {shift.note}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs font-semibold text-text-muted mt-1.5 italic">No shift assigned yet.</p>
                 )}
               </div>
-            ) : (
-              <p className="text-xs font-semibold text-text-muted mt-1.5 italic">No shift assigned yet.</p>
-            )}
+            ))}
           </div>
         </div>
       </motion.div>
 
+      {/* Row 3: Application Overview — one glanceable card per module */}
+      <motion.div variants={itemVariants}>
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-soft mb-3 flex items-center gap-1.5">
+          <LayoutGrid size={13} className="text-accent-purple" /> Application Overview
+        </h2>
+        <motion.div variants={containerVariants} className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+          {moduleOverview.map((m) => {
+            const Icon = m.icon;
+            return (
+              <motion.button
+                key={m.id}
+                type="button"
+                variants={itemVariants}
+                whileHover={{ y: -6, scale: 1.02 }}
+                onClick={() => onViewChange?.(m.id)}
+                className="group text-left rounded-[20px] border border-transparent dark:border-white/5 bg-card-bg p-4 shadow-soft hover:shadow-glow transition-all duration-300 backdrop-blur-[12px] cursor-pointer"
+              >
+                <div className="flex items-start justify-between">
+                  <div className={`w-9 h-9 rounded-[12px] flex items-center justify-center border ${m.accent} shadow-sm`}>
+                    <Icon size={16} />
+                  </div>
+                  <ArrowUpRight
+                    size={14}
+                    className="text-text-muted opacity-0 group-hover:opacity-100 group-hover:text-accent-cyan transition-all -translate-y-0.5 group-hover:translate-y-0"
+                  />
+                </div>
+                <div className="mt-3">
+                  {!isMounted ? (
+                    <div className="h-7 w-10 rounded bg-white/5 animate-pulse" />
+                  ) : (
+                    <span className="text-2xl font-bold tracking-tight text-text-primary block leading-none">
+                      {m.value === null ? "—" : m.value}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide mt-1.5 block truncate">
+                    {m.label}
+                  </span>
+                  <span className="text-[9px] text-text-muted mt-0.5 block truncate">{m.sub}</span>
+                </div>
+              </motion.button>
+            );
+          })}
+        </motion.div>
+      </motion.div>
+
       {/* Row 4: Work Category Cards (top 5 category cards) */}
-      <motion.div
-        variants={containerVariants}
-        className="grid gap-4 grid-cols-2 md:grid-cols-5"
-      >
-        {!isMounted ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="rounded-[20px] border border-transparent dark:border-white/5 bg-card-bg p-4 h-[110px] animate-pulse flex flex-col justify-between" />
-          ))
-        ) : (
-          workCategoriesData.map((c, idx) => {
-            const Icon = c.icon;
+      <motion.div variants={itemVariants}>
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-soft mb-3 flex items-center gap-1.5">
+          <ClipboardList size={13} className="text-accent-purple" /> Work by Category
+        </h2>
+        <motion.div
+          variants={containerVariants}
+          className="grid gap-4 grid-cols-2 md:grid-cols-5"
+        >
+          {!isMounted ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-[20px] border border-transparent dark:border-white/5 bg-card-bg p-4 h-[110px] animate-pulse flex flex-col justify-between" />
+            ))
+          ) : (
+            workCategoriesData.map((c, idx) => {
+              const Icon = c.icon;
+              return (
+                <motion.div
+                  variants={itemVariants}
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  key={idx}
+                  className="rounded-[20px] border border-transparent dark:border-white/5 bg-card-bg p-4 h-[110px] shadow-soft hover:shadow-glow transition-all duration-300 backdrop-blur-[12px] flex flex-col justify-between cursor-pointer"
+                >
+                  <div className={`w-9 h-9 rounded-[12px] flex items-center justify-center ${c.color} shadow-sm`}>
+                    <Icon size={16} />
+                  </div>
+                  <div className="mt-auto text-right">
+                    <span className="text-2xl font-bold tracking-tight text-text-primary block leading-none">{c.count}</span>
+                    <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide mt-1 block truncate" title={c.name}>{c.name}</span>
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </motion.div>
+      </motion.div>
+
+      {/* Row 5: Statistics Cards (Ticket Overview stats) */}
+      <motion.div variants={itemVariants}>
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-soft mb-3 flex items-center gap-1.5">
+          <TicketIcon size={13} className="text-accent-cyan" /> Ticket Status Overview
+        </h2>
+        <motion.div
+          variants={containerVariants}
+          className="grid gap-4 grid-cols-2 md:grid-cols-5"
+        >
+          {[
+            { title: "Total Tickets", val: stats.totalT, color: "bg-accent-purple/10 text-accent-purple border-accent-purple/20", icon: TicketIcon },
+            { title: "Open Tickets", val: stats.openT, color: "bg-danger/10 text-danger border-danger/20", icon: AlertCircle },
+            { title: "In Progress", val: stats.inProgressT, color: "bg-amber-500/10 text-amber-500 border-amber-500/20", icon: Clock3 },
+            { title: "On Hold", val: stats.awaitingT, color: "bg-warning/10 text-warning border-warning/20", icon: HelpCirclePlaceholder },
+            { title: "Closed/Resolved", val: stats.closedT, color: "bg-success/10 text-success border-success/20", icon: ShieldCheck },
+          ].map((c, i) => {
+            const IconComponent = c.icon;
             return (
               <motion.div
                 variants={itemVariants}
                 whileHover={{ y: -6, scale: 1.02 }}
-                key={idx}
+                key={i}
                 className="rounded-[20px] border border-transparent dark:border-white/5 bg-card-bg p-4 h-[110px] shadow-soft hover:shadow-glow transition-all duration-300 backdrop-blur-[12px] flex flex-col justify-between cursor-pointer"
               >
                 <div className={`w-9 h-9 rounded-[12px] flex items-center justify-center ${c.color} shadow-sm`}>
-                  <Icon size={16} />
+                  <IconComponent size={16} />
                 </div>
                 <div className="mt-auto text-right">
-                  <span className="text-2xl font-bold tracking-tight text-text-primary block leading-none">{c.count}</span>
-                  <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide mt-1 block truncate" title={c.name}>{c.name}</span>
+                  <span className="text-2xl font-bold tracking-tight text-text-primary block leading-none">{c.val}</span>
+                  <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide mt-1 block truncate" title={c.title}>{c.title}</span>
                 </div>
               </motion.div>
             );
-          })
-        )}
+          })}
+        </motion.div>
       </motion.div>
 
-      {/* Row 5: Statistics Cards (Ticket Overview stats) */}
-      <motion.div
-        variants={containerVariants}
-        className="grid gap-4 grid-cols-2 md:grid-cols-5"
-      >
-        {[
-          { title: "Total Tickets", val: stats.totalT, color: "bg-accent-purple/10 text-accent-purple border-accent-purple/20", icon: TicketIcon },
-          { title: "Open Tickets", val: stats.openT, color: "bg-danger/10 text-danger border-danger/20", icon: AlertCircle },
-          { title: "In Progress", val: stats.inProgressT, color: "bg-amber-500/10 text-amber-500 border-amber-500/20", icon: Clock3 },
-          { title: "On Hold", val: stats.awaitingT, color: "bg-warning/10 text-warning border-warning/20", icon: HelpCirclePlaceholder },
-          { title: "Closed/Resolved", val: stats.closedT, color: "bg-success/10 text-success border-success/20", icon: ShieldCheck },
-        ].map((c, i) => {
-          const IconComponent = c.icon;
-          return (
-            <motion.div
-              variants={itemVariants}
-              whileHover={{ y: -6, scale: 1.02 }}
-              key={i}
-              className="rounded-[20px] border border-transparent dark:border-white/5 bg-card-bg p-4 h-[110px] shadow-soft hover:shadow-glow transition-all duration-300 backdrop-blur-[12px] flex flex-col justify-between cursor-pointer"
-            >
-              <div className={`w-9 h-9 rounded-[12px] flex items-center justify-center ${c.color} shadow-sm`}>
-                <IconComponent size={16} />
-              </div>
-              <div className="mt-auto text-right">
-                <span className="text-2xl font-bold tracking-tight text-text-primary block leading-none">{c.val}</span>
-                <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide mt-1 block truncate" title={c.title}>{c.title}</span>
-              </div>
-            </motion.div>
-          );
-        })}
+      {/* Row 5b: OEM Case Status Overview */}
+      <motion.div variants={itemVariants}>
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-soft mb-3 flex items-center gap-1.5">
+          <ShieldCheck size={13} className="text-emerald-500" /> OEM Case Status Overview
+        </h2>
+        <motion.div
+          variants={containerVariants}
+          className="grid gap-4 grid-cols-2 md:grid-cols-4"
+        >
+          {[
+            { title: "Total Cases", val: oemStats.total, color: "bg-accent-purple/10 text-accent-purple border-accent-purple/20", icon: ShieldCheck },
+            { title: "Pending From OEM", val: oemStats.pendingFromOem, color: "bg-amber-500/10 text-amber-500 border-amber-500/20", icon: Clock3 },
+            { title: "Escalated", val: oemStats.escalated, color: "bg-danger/10 text-danger border-danger/20", icon: AlertCircle },
+            { title: "Resolved", val: oemStats.resolved, color: "bg-success/10 text-success border-success/20", icon: CheckCircle2 },
+          ].map((c, i) => {
+            const IconComponent = c.icon;
+            return (
+              <motion.div
+                variants={itemVariants}
+                whileHover={{ y: -6, scale: 1.02 }}
+                key={i}
+                onClick={() => onViewChange?.("oem-cases")}
+                className="rounded-[20px] border border-transparent dark:border-white/5 bg-card-bg p-4 h-[110px] shadow-soft hover:shadow-glow transition-all duration-300 backdrop-blur-[12px] flex flex-col justify-between cursor-pointer"
+              >
+                <div className={`w-9 h-9 rounded-[12px] flex items-center justify-center ${c.color} shadow-sm`}>
+                  <IconComponent size={16} />
+                </div>
+                <div className="mt-auto text-right">
+                  <span className="text-2xl font-bold tracking-tight text-text-primary block leading-none">{c.val}</span>
+                  <span className="text-[10px] font-semibold text-text-soft uppercase tracking-wide mt-1 block truncate" title={c.title}>{c.title}</span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
       </motion.div>
 
       {/* Row 3: Continue Work | Today's Focus */}

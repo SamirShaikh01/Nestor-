@@ -32,6 +32,8 @@ export default function RootLayout({
                   root.classList.remove('light');
                   root.classList.add('dark');
                   root.style.colorScheme = 'dark';
+                  var accent = localStorage.getItem('nestor_accent_theme');
+                  if (accent) root.setAttribute('data-accent', accent);
                 } catch(e) {}
               })();
             `,
