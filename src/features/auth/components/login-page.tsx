@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { KeyRound, Mail, Lock, User, AlertCircle, ShieldCheck } from "lucide-react";
 import { supabase } from "@/src/shared/lib/supabase";
+import { useNestor } from "@/src/shared/context/nestor-context";
 
 // Dev-only quick-login shortcuts — never rendered in a production build.
 // See docs/decisions.md ADR-019 before adding more of these or changing the
@@ -18,11 +19,21 @@ const DEV_QUICK_LOGINS =
     : [];
 
 export function LoginPage() {
+  const { authNotice, setAuthNotice } = useNestor();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Surface a forced-sign-out reason (e.g. an admin disabled this account)
+  // once, then clear it from context so it doesn't reappear later.
+  useEffect(() => {
+    if (authNotice) {
+      setErrorMsg(authNotice);
+      setAuthNotice(null);
+    }
+  }, [authNotice, setAuthNotice]);
 
   const performSignIn = async (emailVal: string, passwordVal: string) => {
     if (!emailVal || !passwordVal) return;

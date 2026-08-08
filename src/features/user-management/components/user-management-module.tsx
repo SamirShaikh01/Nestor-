@@ -70,20 +70,6 @@ export function UserManagementModule() {
     return diffMs < 5 * 60 * 1000; // Available if active within last 5 minutes
   };
 
-  const formatLastSeen = (lastSeenStr: string | null) => {
-    if (!lastSeenStr) return "Never active";
-    const lastSeen = new Date(lastSeenStr);
-    const now = new Date();
-    const diffMs = now.getTime() - lastSeen.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays}d ago`;
-  };
-
   // Create new user via secure RPC
   const handleAddUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -370,7 +356,7 @@ export function UserManagementModule() {
                         <div className="flex items-center gap-2">
                           <span className={`h-2 w-2 rounded-full ${online ? "bg-accent-cyan animate-pulse" : "bg-text-muted"}`} />
                           <span className={`text-[10px] font-semibold ${online ? "text-accent-cyan" : "text-text-soft"}`}>
-                            {online ? "Online (Available)" : `Offline (${formatLastSeen(profile.last_seen_at)})`}
+                            {online ? "Online (Available)" : "Offline"}
                           </span>
                         </div>
                       </td>

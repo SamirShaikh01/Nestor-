@@ -173,6 +173,12 @@ interface NestorContextType {
   setStatus: (status: "active" | "disabled" | "pending") => void;
   employeeId: string;
 
+  // Set (and consumed/cleared by) the Login screen when a session is force-
+  // signed-out for a reason the user should be told about, e.g. their
+  // account was disabled by an admin.
+  authNotice: string | null;
+  setAuthNotice: (msg: string | null) => void;
+
   // Shift Requests Workflow
   shiftRequests: ShiftRequest[];
   submitShiftRequest: (dateStr: string, requestedShiftCode: string, reason: string) => Promise<boolean>;
@@ -295,6 +301,7 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<"admin" | "member">("member");
   const [status, setStatus] = useState<"active" | "disabled" | "pending">("active");
   const [employeeId, setEmployeeId] = useState<string>("");
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tickets, setTickets] = useState<Ticket[]>([]);
@@ -386,6 +393,22 @@ export function NestorProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         console.error("Failed to update user presence heartbeat:", e);
       }
+
+      // An admin can disable an account while it's already signed in — the
+      // Supabase Auth session itself has no idea about `profiles.status` (it
+      // isn't a server-side check, just an app-level column), so a disabled
+      // user could otherwise keep using an already-open session
+      // indefinitely. Piggyback on this same heartbeat to re-check status
+      // and force a sign-out within ~2 minutes of being disabled.
+      try {
+        const { data } = await supabase!.from("profiles").select("status").eq("id", user.id).single();
+        if (data?.status === "disabled") {
+          setAuthNotice("Your account has been disabled by an administrator.");
+          await supabase!.auth.signOut();
+        }
+      } catch (e) {
+        console.error("Failed to verify account status during heartbeat:", e);
+      }
     };
 
     // Update immediately on user load
@@ -407,6 +430,16 @@ export function NestorProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
       if (data) {
+        // Block sign-in outright for a disabled account. Supabase Auth has
+        // no concept of this — signInWithPassword already succeeded and
+        // handed back a valid session by the time this runs — so the only
+        // way to actually enforce it client-side is to immediately end that
+        // session rather than let the app proceed with it.
+        if (data.status === "disabled") {
+          setAuthNotice("This account has been disabled by an administrator.");
+          await supabase!.auth.signOut();
+          return;
+        }
         setRole(data.role as "admin" | "member");
         setStatus(data.status as "active" | "disabled" | "pending");
         setEmployeeId(data.employee_id || userId);
@@ -2989,6 +3022,8 @@ export function NestorProvider({ children }: { children: ReactNode }) {
         status,
         setStatus,
         employeeId,
+        authNotice,
+        setAuthNotice,
 
         fontFamily,
         setFontFamily,
