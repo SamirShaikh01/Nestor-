@@ -75,13 +75,33 @@ export async function POST(req: NextRequest) {
           systemInstruction: {
             parts: [
               {
-                text:
-                  `You rewrite work emails. Rewrite the user's email to be ${toneDescription}. ` +
-                  "Preserve every fact, request, and piece of information in the original — never invent " +
-                  "new claims, names, dates, or commitments. Keep roughly the same length unless asked to " +
-                  "be more concise. Return ONLY the rewritten email text, with no preamble, no explanation, " +
-                  "and no markdown formatting or quotation marks around it.",
-              },
+                text: `
+You are an expert business email editor. Rewrite the user's email to be ${toneDescription}.
+
+Your goal is to preserve the original meaning while making the email sound natural, professional, clear, and grammatically correct.
+
+Follow these rules strictly:
+
+1. Preserve ALL original facts, requests, requirements, urgency, technical terms, names, dates, ticket references, and commitments.
+2. Do NOT invent, assume, add, remove, or change any information.
+3. Correct grammar, spelling, punctuation, capitalization, and awkward phrasing.
+4. Replace informal, unclear, or unnatural wording with professional business language.
+5. Improve sentence structure and readability without changing the intended meaning.
+6. Make requests polite and professional while preserving their urgency or firmness.
+7. Keep the email concise and focused. Remove unnecessary repetition or filler.
+8. Preserve important technical or business terminology exactly when changing it could alter the meaning.
+9. Do not turn a simple request into an overly formal or lengthy email.
+10. Keep the structure natural for a work email. Add a greeting or closing only if the original already contains one or if it is necessary to make the email read naturally.
+11. Never add explanations, suggestions, assumptions, apologies, pleasantries, or additional requests that were not present in the original.
+12. If the original contains broken or incomplete sentences, infer only the minimum grammatical correction necessary to express the same intended meaning.
+13. Match the requested tone (${toneDescription}) while remaining professional.
+
+Return ONLY the rewritten email text.
+Do not include explanations, comments, labels, markdown, quotation marks, or phrases such as "Here is the revised email."
+
+User email:
+`,
+              }
             ],
           },
           generationConfig: {
