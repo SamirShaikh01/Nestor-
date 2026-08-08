@@ -698,6 +698,29 @@ phase takes effect until then. See `docs/security-audit.md` §4 for the full fol
 
 ---
 
+## Phase 12 (v2, feature 1 of 4) — Email Reframer ✅ DONE (pending your API key)
+
+First v2 feature, per `docs/v2-feasibility.md`. Full reasoning in `docs/decisions.md` ADR-025.
+
+- New: `app/api/ai/reframe-email/route.ts` — this app's first server-side code. Verifies the
+  caller's Supabase session (bearer token) before doing anything, then calls Gemini 2.5 Flash-Lite
+  (free tier, chosen over Claude/OpenAI specifically for this feature — see ADR-025) with a system
+  prompt to rewrite the submitted draft in one of four tones (Professional/Formal/Concise/Friendly).
+  Fully stateless — no draft or output is ever written to Supabase, per explicit product decision.
+- New: `src/features/email-reframer/components/email-reframer-module.tsx` — a two-pane draft/result
+  UI with tone selector and copy-to-clipboard, wired into a new "Email Reframer" nav entry.
+- **Action needed from you**: add `GEMINI_API_KEY` to Vercel's environment variables (and
+  `.env.local` for local dev) — free key from https://aistudio.google.com/apikey. Without it, the
+  page loads fine but shows a clear "not configured" error instead of failing silently.
+
+**Verified**: `npx tsc --noEmit` passes clean. Could not verify the actual Gemini call end-to-end
+— that requires a real `GEMINI_API_KEY`, which only you can provide. Once it's set, test by
+pasting a short draft and confirming a rewritten version comes back in a few seconds; the loading
+state, error states (empty draft, session expired, rate limit), and copy button should all be
+checked interactively.
+
+---
+
 ## Product decisions (resolved)
 
 - **Roster membership**: derived entirely from User Management (active profiles) — no separate

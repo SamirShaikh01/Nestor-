@@ -27,6 +27,18 @@ the current browser session and is never persisted anywhere. This is intentional
 behavior (see [../src/shared/lib/supabase.ts](../src/shared/lib/supabase.ts) `isSupabaseConfigured`),
 not a bug — useful for quick UI work without a real backend, but not for anything you want to keep.
 
+**v2**: the Email Reframer feature (`app/api/ai/reframe-email`) is this app's first server-side
+code and needs its own secret, **not** `NEXT_PUBLIC_*` — it must never reach the browser:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+Get a free key from [Google AI Studio](https://aistudio.google.com/apikey) — no credit card
+required. Without this set, the Email Reframer page shows a "not configured" error but the rest of
+the app is unaffected. See [decisions.md](decisions.md) ADR-025 and
+[v2-feasibility.md](v2-feasibility.md) for why this is the first feature to need a real backend.
+
 ## 3. Set up the database schema
 
 Run [../supabase_schema.sql](../supabase_schema.sql) in your Supabase project's SQL Editor —

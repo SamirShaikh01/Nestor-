@@ -1,0 +1,1265 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Nestor Security Command Center</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+:root{
+  --bg:#F4F6F5; --bg-elev:#FFFFFF; --ink:#101A17; --ink-soft:#4B5A55; --ink-faint:#7C8B85;
+  --border:#DCE3E0; --border-soft:#E9EDEB;
+  --accent:#2F6F4F; --accent-soft:#E4EFE9; --accent-ink:#1C4936;
+  --card-radius:16px; --chip-radius:999px;
+  --strong:#2F6F4F; --strong-bg:#E4EFE9;
+  --normal:#2E6CA4; --normal-bg:#E5EEF6;
+  --low:#B4791C; --low-bg:#FBEFDD;
+  --none:#B23A3A; --none-bg:#FBE6E6;
+  --high:#B23A3A; --high-bg:#FBE6E6;
+  --med:#B4791C; --med-bg:#FBEFDD;
+  --lowsev:#57806F; --lowsev-bg:#E9F1EC;
+  --shadow:0 1px 2px rgba(16,26,23,.04), 0 8px 24px -12px rgba(16,26,23,.10);
+  --mono: ui-monospace, "Cascadia Mono", "Consolas", "SFMono-Regular", Menlo, monospace;
+  --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, "Inter", Roboto, Helvetica, Arial, sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --bg-elev:#141E1A; --ink:#EAF2EE; --ink-soft:#AEC0B9; --ink-faint:#7E9089;
+  --border:#243530; --border-soft:#1C2B26;
+  --accent:#5FAE85; --accent-soft:#1B2E26; --accent-ink:#9FD9BB;
+  --strong:#5FAE85; --strong-bg:#17281F;
+  --normal:#6FA9DD; --normal-bg:#152331;
+  --low:#E0AA53; --low-bg:#2E2210;
+  --none:#E37B7B; --none-bg:#301616;
+  --high:#E37B7B; --high-bg:#301616;
+  --med:#E0AA53; --med-bg:#2E2210;
+  --lowsev:#8FB3A2; --lowsev-bg:#182420;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1512; --bg-elev:#141E1A; --ink:#EAF2EE; --ink-soft:#AEC0B9; --ink-faint:#7E9089;
+    --border:#243530; --border-soft:#1C2B26;
+    --accent:#5FAE85; --accent-soft:#1B2E26; --accent-ink:#9FD9BB;
+    --strong:#5FAE85; --strong-bg:#17281F;
+    --normal:#6FA9DD; --normal-bg:#152331;
+    --low:#E0AA53; --low-bg:#2E2210;
+    --none:#E37B7B; --none-bg:#301616;
+    --high:#E37B7B; --high-bg:#301616;
+    --med:#E0AA53; --med-bg:#2E2210;
+    --lowsev:#8FB3A2; --lowsev-bg:#182420;
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--sans);
+  font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--accent-soft); color:var(--accent-ink);}
+h1,h2,h3,h4{text-wrap:balance; margin:0; font-weight:650; letter-spacing:-0.01em;}
+p{margin:0;}
+a{color:inherit;}
+.mono{font-family:var(--mono); font-variant-numeric:tabular-nums;}
+button{font-family:inherit; cursor:pointer;}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px;}
+
+/* ---------- Shell ---------- */
+.shell{display:flex; min-height:100vh;}
+.sidebar{
+  width:248px; flex:none; background:var(--bg-elev); border-right:1px solid var(--border);
+  padding:20px 14px; display:flex; flex-direction:column; gap:4px; position:sticky; top:0; height:100vh; overflow-y:auto;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:6px 10px 18px;}
+.brand-mark{
+  width:34px; height:34px; border-radius:10px; background:linear-gradient(155deg,var(--accent),var(--accent-ink));
+  display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:15px; flex:none;
+  box-shadow:var(--shadow);
+}
+.brand-text{display:flex; flex-direction:column; line-height:1.2;}
+.brand-text b{font-size:14.5px; letter-spacing:-0.01em;}
+.brand-text span{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.06em;}
+.navlabel{font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); padding:14px 12px 6px;}
+.navitem{
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; color:var(--ink-soft);
+  font-size:13.6px; font-weight:500; border:1px solid transparent; background:none; width:100%; text-align:left;
+}
+.navitem:hover{background:var(--accent-soft); color:var(--ink);}
+.navitem.active{background:var(--accent-soft); color:var(--accent-ink); border-color:var(--border-soft); font-weight:650;}
+.navitem .ico{width:16px; text-align:center; flex:none; opacity:.85;}
+.themetoggle{
+  margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:10px 12px; border:1px solid var(--border); border-radius:10px; font-size:12.5px; color:var(--ink-soft);
+}
+.themetoggle button{
+  border:1px solid var(--border); background:var(--bg); color:var(--ink-soft); border-radius:8px; padding:5px 9px; font-size:12px;
+}
+.themetoggle button.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+
+.main{flex:1; min-width:0; padding:32px 40px 80px; max-width:1280px;}
+.section{display:none; animation:fade .25s ease;}
+.section.active{display:block;}
+@keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+.section-head{margin-bottom:26px; display:flex; flex-direction:column; gap:6px;}
+.section-eyebrow{font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent-ink); font-weight:700;}
+.section-title{font-size:25px;}
+.section-desc{color:var(--ink-soft); font-size:14px; max-width:74ch;}
+
+/* ---------- Cards / generic ---------- */
+.card{
+  background:var(--bg-elev); border:1px solid var(--border); border-radius:var(--card-radius);
+  box-shadow:var(--shadow); padding:20px;
+}
+.grid{display:grid; gap:16px;}
+.grid-2{grid-template-columns:repeat(2,1fr);}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+.grid-4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:1000px){.grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:repeat(2,1fr);}}
+
+/* Status chip system (shared) */
+.chip{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:var(--chip-radius); font-size:11.5px; font-weight:650; letter-spacing:.01em; white-space:nowrap;}
+.chip .dot{width:6px; height:6px; border-radius:50%; flex:none;}
+.chip.strong{background:var(--strong-bg); color:var(--strong);} .chip.strong .dot{background:var(--strong);}
+.chip.normal{background:var(--normal-bg); color:var(--normal);} .chip.normal .dot{background:var(--normal);}
+.chip.low{background:var(--low-bg); color:var(--low);} .chip.low .dot{background:var(--low);}
+.chip.none{background:var(--none-bg); color:var(--none);} .chip.none .dot{background:var(--none);}
+.chip.high{background:var(--high-bg); color:var(--high);} .chip.high .dot{background:var(--high);}
+.chip.med{background:var(--med-bg); color:var(--med);} .chip.med .dot{background:var(--med);}
+.chip.lowsev{background:var(--lowsev-bg); color:var(--lowsev);} .chip.lowsev .dot{background:var(--lowsev);}
+
+/* ---------- Overview ---------- */
+.hero-card{
+  background:linear-gradient(160deg,var(--accent-ink),var(--accent)); color:#fff; border-radius:20px;
+  padding:28px 30px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--shadow); margin-bottom:22px;
+}
+.hero-card h2{font-size:22px; color:#fff;}
+.hero-card p{color:rgba(255,255,255,.86); max-width:70ch; font-size:14px;}
+.hero-meta{display:flex; gap:22px; margin-top:8px; flex-wrap:wrap;}
+.hero-meta div{display:flex; flex-direction:column; gap:2px;}
+.hero-meta b{font-size:19px;}
+.hero-meta span{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:rgba(255,255,255,.7);}
+.stack-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px;}
+.pill{background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:4px 10px; border-radius:999px; font-size:11.5px;}
+
+.overview-card h3{font-size:14.5px; margin-bottom:8px; display:flex; align-items:center; gap:8px;}
+.overview-card p{font-size:13.3px; color:var(--ink-soft);}
+.persona-row{display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-top:1px solid var(--border-soft);}
+.persona-row:first-child{border-top:none; padding-top:0;}
+.persona-av{width:30px; height:30px; border-radius:9px; background:var(--accent-soft); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; flex:none;}
+.timeline{display:flex; flex-direction:column; gap:0;}
+.tl-row{display:flex; gap:12px; padding:9px 0; border-top:1px dashed var(--border);}
+.tl-row:first-child{border-top:none;}
+.tl-date{font-size:11.5px; color:var(--ink-faint); width:78px; flex:none; padding-top:1px;}
+.tl-text{font-size:13px; color:var(--ink-soft);}
+.tl-text b{color:var(--ink); font-weight:600;}
+
+/* ---------- Docs ---------- */
+.doc-search{
+  width:100%; padding:11px 14px; border-radius:12px; border:1px solid var(--border); background:var(--bg-elev);
+  color:var(--ink); font-size:13.5px; margin-bottom:16px;
+}
+.doc-search:focus-visible{outline:2px solid var(--accent);}
+.doc-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:14px;}
+.doc-card{cursor:pointer; transition:border-color .15s, transform .15s;}
+.doc-card:hover{border-color:var(--accent); transform:translateY(-2px);}
+.doc-card .fname{font-family:var(--mono); font-size:12px; color:var(--accent-ink); background:var(--accent-soft); display:inline-block; padding:2px 8px; border-radius:6px; margin-bottom:10px;}
+.doc-card h4{font-size:14.5px; margin-bottom:6px;}
+.doc-card p{font-size:12.8px; color:var(--ink-soft);}
+.doc-card .relevance{margin-top:10px; font-size:11.8px; color:var(--ink-faint); display:flex; gap:6px; align-items:flex-start;}
+
+/* Modal */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(10,16,14,.5); backdrop-filter:blur(2px); display:none;
+  align-items:center; justify-content:center; z-index:100; padding:24px;
+}
+.modal-overlay.open{display:flex;}
+.modal{
+  background:var(--bg-elev); border:1px solid var(--border); border-radius:18px; max-width:600px; width:100%;
+  max-height:82vh; overflow-y:auto; padding:26px 28px; box-shadow:0 20px 60px -20px rgba(0,0,0,.4);
+}
+.modal-close{float:right; background:var(--bg); border:1px solid var(--border); border-radius:8px; width:28px; height:28px; color:var(--ink-soft); font-size:14px;}
+.modal .fname{font-family:var(--mono); font-size:12px; color:var(--accent-ink); background:var(--accent-soft); display:inline-block; padding:2px 8px; border-radius:6px;}
+.modal h3{font-size:19px; margin:10px 0 4px;}
+.modal .purpose{color:var(--ink-soft); font-size:13.5px; margin-bottom:14px;}
+.modal ul{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px; font-size:13.3px; color:var(--ink);}
+.modal .relbox{margin-top:16px; padding:12px 14px; border-radius:10px; background:var(--accent-soft); font-size:13px; color:var(--accent-ink);}
+.modal .sectionlabel{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); margin:14px 0 6px;}
+
+/* ---------- Architecture ---------- */
+.arch-tabs{display:flex; gap:8px; margin-bottom:18px;}
+.arch-tab{padding:9px 16px; border-radius:10px; border:1px solid var(--border); background:var(--bg-elev); font-size:13.5px; font-weight:600; color:var(--ink-soft);}
+.arch-tab.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+.legend{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; font-size:12px; color:var(--ink-soft);}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.legend .dot{width:8px; height:8px; border-radius:50%;}
+.arch-view{display:none;}
+.arch-view.active{display:block;}
+.layer-stack{display:flex; flex-direction:column; gap:10px;}
+.layer{
+  display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:14px;
+  background:var(--bg-elev); border:1px solid var(--border); border-radius:14px; padding:14px 18px; cursor:pointer;
+  transition:border-color .15s, box-shadow .15s;
+}
+.layer:hover{border-color:var(--accent); box-shadow:var(--shadow);}
+.layer-num{width:32px; height:32px; border-radius:9px; background:var(--accent-soft); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;}
+.layer-body h4{font-size:14.5px; margin-bottom:3px;}
+.layer-body span{font-size:12.3px; color:var(--ink-faint);}
+.sidepanels{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px;}
+.sidepanel-card h4{font-size:13.5px; margin-bottom:10px;}
+.sidepanel-item{display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:1px solid var(--border-soft); font-size:12.8px; cursor:pointer;}
+.sidepanel-item:first-child{border-top:none;}
+.sidepanel-item:hover .sp-label{color:var(--accent-ink);}
+
+/* ---------- Version check ---------- */
+.vc-filterbar{display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;}
+.vc-filter{padding:7px 13px; border-radius:999px; border:1px solid var(--border); background:var(--bg-elev); font-size:12.5px; font-weight:600; color:var(--ink-soft);}
+.vc-filter.active{background:var(--ink); color:var(--bg-elev);}
+.vc-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px;}
+.vc-card{display:flex; flex-direction:column; gap:10px;}
+.vc-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+.vc-name{font-size:14.5px; font-weight:650;}
+.vc-ver{font-family:var(--mono); font-size:12px; color:var(--ink-faint);}
+.vc-issue{font-size:12.6px; color:var(--ink-soft);}
+.vc-cve{display:flex; gap:6px; flex-wrap:wrap;}
+.vc-cve span{font-family:var(--mono); font-size:10.8px; background:var(--bg); border:1px solid var(--border); padding:2px 7px; border-radius:6px; color:var(--ink-soft);}
+.vc-action{font-size:12.3px; padding-top:8px; border-top:1px dashed var(--border); color:var(--ink-soft);}
+.vc-action b{color:var(--ink);}
+
+/* ---------- Compliance ---------- */
+.score-ring-wrap{display:flex; align-items:center; gap:26px;}
+.score-ring{position:relative; width:150px; height:150px; flex:none;}
+.score-ring svg{transform:rotate(-90deg);}
+.score-ring .track{fill:none; stroke:var(--border-soft); stroke-width:12;}
+.score-ring .fill{fill:none; stroke:var(--low); stroke-width:12; stroke-linecap:round; transition:stroke-dashoffset 1s ease;}
+.score-num{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.score-num b{font-size:32px;}
+.score-num span{font-size:11px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em;}
+.comp-list{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+.comp-row{display:grid; grid-template-columns:1fr 130px 60px; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--border-soft);}
+.comp-row:first-child{border-top:none;}
+.comp-name{font-size:13.6px; font-weight:600;}
+.comp-note{font-size:12px; color:var(--ink-faint); margin-top:2px;}
+.bar-track{height:8px; border-radius:99px; background:var(--border-soft); overflow:hidden;}
+.bar-fill{height:100%; border-radius:99px; background:var(--accent);}
+.comp-pct{font-family:var(--mono); font-size:13px; text-align:right; font-weight:650;}
+
+/* ---------- Compliance accordion ---------- */
+.comp-acc-item{border-top:1px solid var(--border-soft); padding:12px 0;}
+.comp-acc-item:first-child{border-top:none;}
+.comp-acc-head{display:grid; grid-template-columns:1fr 130px 56px 20px; align-items:center; gap:14px; cursor:pointer; user-select:none;}
+.comp-acc-head:hover .comp-name{color:var(--accent-ink);}
+.comp-acc-chevron{color:var(--ink-faint); font-size:11px; transition:transform .15s; text-align:right;}
+.comp-acc-item.open .comp-acc-chevron{transform:rotate(90deg);}
+.comp-acc-body{max-height:0; overflow:hidden; transition:max-height .2s ease;}
+.comp-acc-item.open .comp-acc-body{max-height:600px;}
+.comp-acc-inner{padding:14px 4px 4px; display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+@media(max-width:760px){.comp-acc-inner{grid-template-columns:1fr;} .comp-acc-head{grid-template-columns:1fr 90px 40px 16px;}}
+.comp-checklist{display:flex; flex-direction:column; gap:8px;}
+.comp-checklist-title{font-size:11px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; margin-bottom:2px;}
+.comp-checklist-title.ful{color:var(--strong);}
+.comp-checklist-title.rem{color:var(--none);}
+.comp-check-row{display:flex; gap:8px; align-items:flex-start; font-size:12.8px; color:var(--ink-soft); line-height:1.4;}
+.comp-check-row .ico{flex:none; margin-top:1px; font-size:12px;}
+.comp-check-row.ful .ico{color:var(--strong);}
+.comp-check-row.rem .ico{color:var(--none);}
+
+/* ---------- Security Actions board ---------- */
+.actions-toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; justify-content:space-between;}
+.actions-filters{display:flex; gap:8px; flex-wrap:wrap;}
+.action-filter{padding:7px 13px; border-radius:999px; border:1px solid var(--border); background:var(--bg-elev); font-size:12.3px; font-weight:600; color:var(--ink-soft);}
+.action-filter.active{background:var(--ink); color:var(--bg-elev);}
+.btn-primary{background:var(--accent); color:#fff; border:none; padding:9px 16px; border-radius:10px; font-size:13px; font-weight:650; box-shadow:var(--shadow);}
+.action-table{display:flex; flex-direction:column; gap:10px;}
+.action-row{display:grid; grid-template-columns:1fr 150px 160px 90px; gap:14px; align-items:center; background:var(--bg-elev); border:1px solid var(--border); border-radius:14px; padding:14px 18px;}
+@media(max-width:900px){.action-row{grid-template-columns:1fr; }}
+.action-main h4{font-size:14px; margin-bottom:4px;}
+.action-main .meta{font-size:11.8px; color:var(--ink-faint); display:flex; gap:8px; flex-wrap:wrap;}
+.status-select{padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--ink); font-size:12.3px; font-weight:600;}
+.status-select.st-open{color:var(--none);}
+.status-select.st-in_progress{color:var(--low);}
+.status-select.st-on_hold{color:var(--normal);}
+.status-select.st-resolved,.status-select.st-closed{color:var(--strong);}
+.action-btns{display:flex; gap:6px; justify-self:end;}
+.icon-btn{width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--ink-soft); font-size:13px; display:flex; align-items:center; justify-content:center;}
+.icon-btn:hover{border-color:var(--accent); color:var(--accent-ink);}
+.icon-btn.danger:hover{border-color:var(--none); color:var(--none);}
+.edit-form{display:flex; flex-direction:column; gap:12px; margin-top:12px;}
+.edit-form label{font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); display:block; margin-bottom:5px;}
+.edit-form input, .edit-form select, .edit-form textarea{width:100%; padding:9px 12px; border-radius:9px; border:1px solid var(--border); background:var(--bg); color:var(--ink); font-size:13.3px; font-family:inherit;}
+.edit-form textarea{resize:vertical; min-height:70px;}
+.edit-form-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:4px;}
+.btn-secondary{background:var(--bg); color:var(--ink-soft); border:1px solid var(--border); padding:9px 16px; border-radius:10px; font-size:13px; font-weight:600;}
+.severity-list{display:none; margin-top:16px; padding-top:14px; border-top:1px dashed var(--border); flex-direction:column; gap:8px;}
+.severity-list.open{display:flex;}
+.severity-list-item{display:flex; justify-content:space-between; gap:10px; font-size:12.8px; padding:6px 0; border-top:1px solid var(--border-soft);}
+.severity-list-item:first-child{border-top:none;}
+.bars .bar{cursor:pointer;}
+.bars .bar:hover .stem{filter:brightness(1.1); box-shadow:0 0 0 2px var(--accent-soft);}
+
+/* ---------- Dashboard ---------- */
+.kpi{display:flex; flex-direction:column; gap:6px;}
+.kpi .label{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em;}
+.kpi .value{font-size:30px; font-weight:700; display:flex; align-items:baseline; gap:8px;}
+.kpi .sub{font-size:12.3px; color:var(--ink-soft);}
+.bars{display:flex; align-items:flex-end; gap:10px; height:120px; padding-top:10px;}
+.bars .bar{flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; justify-content:flex-end; height:100%;}
+.bars .bar .stem{width:100%; border-radius:8px 8px 4px 4px; min-height:4px;}
+.bars .bar .lbl{font-size:11px; color:var(--ink-faint);}
+.hbar-row{display:flex; align-items:center; gap:10px; padding:6px 0;}
+.hbar-label{width:150px; flex:none; font-size:12.6px; color:var(--ink-soft);}
+.hbar-track{flex:1; height:9px; background:var(--border-soft); border-radius:99px; overflow:hidden;}
+.hbar-fill{height:100%; border-radius:99px;}
+.hbar-val{width:32px; text-align:right; font-family:var(--mono); font-size:12px; color:var(--ink-faint);}
+
+footer.note{margin-top:36px; padding-top:18px; border-top:1px solid var(--border); font-size:11.8px; color:var(--ink-faint);}
+
+/* ---------- Methodology table ---------- */
+.meth-row{display:grid; grid-template-columns:1.4fr 1.6fr 1.6fr 1.2fr 1fr; gap:12px; align-items:flex-start; padding:11px 0; border-top:1px solid var(--border-soft); font-size:12.6px;}
+.meth-row:first-child{border-top:none;}
+.meth-row.meth-head{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); font-weight:700; padding-bottom:8px;}
+.meth-mod{font-weight:650; color:var(--ink);}
+.meth-cmd{font-family:var(--mono); font-size:11.5px; color:var(--ink-soft); word-break:break-word;}
+.meth-scope{color:var(--ink-soft);}
+@media(max-width:900px){.meth-row{grid-template-columns:1fr; gap:4px;} .meth-row.meth-head{display:none;}}
+
+@media(max-width:860px){
+  .shell{flex-direction:column;}
+  .sidebar{width:100%; height:auto; position:relative; flex-direction:row; overflow-x:auto;}
+  .main{padding:24px 18px 60px;}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}
+  .sidepanels{grid-template-columns:1fr;}
+  .comp-row{grid-template-columns:1fr; gap:6px;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">NS</div>
+      <div class="brand-text"><b>Nestor</b><span>Security Command Ctr</span></div>
+    </div>
+    <div class="navlabel">Overview</div>
+    <button class="navitem active" data-target="overview"><span class="ico">&#9679;</span>Project Overview</button>
+    <div class="navlabel">Security</div>
+    <button class="navitem" data-target="architecture"><span class="ico">&#9635;</span>Security Architecture</button>
+    <button class="navitem" data-target="versions"><span class="ico">&#9888;</span>Dependency Versions</button>
+    <button class="navitem" data-target="compliance"><span class="ico">&#10003;</span>Compliance Posture</button>
+    <button class="navitem" data-target="owasp"><span class="ico">&#9888;</span>OWASP Top 10 (2021)</button>
+    <div class="navlabel">Reporting</div>
+    <button class="navitem" data-target="actions"><span class="ico">&#9745;</span>Security Actions</button>
+    <button class="navitem" data-target="dashboard"><span class="ico">&#9633;</span>Risk Dashboard</button>
+    <button class="navitem" data-target="methodology"><span class="ico">&#128203;</span>Methodology &amp; Data Integrity</button>
+    <div class="themetoggle">
+      <span>Theme</span>
+      <div style="display:flex;gap:4px;">
+        <button data-theme-btn="light">Light</button>
+        <button data-theme-btn="dark">Dark</button>
+        <button data-theme-btn="auto" class="active">Auto</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- OVERVIEW -->
+    <section class="section active" id="sec-overview">
+      <div class="hero-card">
+        <span style="font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; opacity:.85;">Nestor</span>
+        <h2>AI-Powered Operations Workspace</h2>
+        <p>An internal operations and workforce-management platform for Security, Cloud, and IT Operations teams — unifying Shift Rostering, Task Management, Ticketing, OEM Case tracking, a two-vault Password Manager, and Reports into one workspace. No custom backend by design (ADR-008): PostgreSQL Row-Level Security, enforced entirely through Supabase, is the application's only authorization boundary except for one narrow server-side AI proxy route.</p>
+        <div class="hero-meta">
+          <div><b>11</b><span>Feature Modules</span></div>
+          <div><b>13</b><span>Live Tables (RLS)</span></div>
+          <div><b id="heroDepCount">24</b><span>Dependencies Audited</span></div>
+          <div><b id="heroVulnCount">8</b><span>Vulnerable Packages</span></div>
+          <div><b id="heroComplianceScore">26%</b><span>Compliance Score</span></div>
+          <div><b id="heroOwaspScore">–</b><span>OWASP Exposure Score</span></div>
+          <div><b id="heroSecurityScore" style="color:#FFE9B0;">–</b><span>Security Score</span></div>
+        </div>
+        <div class="stack-row">
+          <span class="pill">Next.js 16 (App Router)</span>
+          <span class="pill">Supabase (PostgreSQL + RLS)</span>
+          <span class="pill">TypeScript + Tailwind CSS</span>
+          <span class="pill">Web Crypto (AES-256-GCM + PBKDF2)</span>
+          <span class="pill">Gemini 2.5 Flash-Lite (1 route)</span>
+          <span class="pill">RLS-only, no custom backend</span>
+        </div>
+        <details style="margin-top:6px;">
+          <summary style="cursor:pointer; font-size:12px; color:rgba(255,255,255,.85); font-weight:650;">How the Security Score is calculated</summary>
+          <div id="scoreFormulaNote" style="margin-top:8px; font-size:12.3px; color:rgba(255,255,255,.82); background:rgba(0,0,0,.14); border:1px solid rgba(255,255,255,.18); border-radius:10px; padding:10px 12px; line-height:1.55;"></div>
+        </details>
+      </div>
+
+      <div class="grid grid-3">
+        <div class="card overview-card">
+          <h3>&#127919; What it does</h3>
+          <p>Centralizes Shift Rostering, Task Management, Ticketing, OEM Case tracking, a two-vault (Team + Personal) encrypted Password Manager, and multi-format (CSV/HTML/PDF) Reports for an internal ops/security team, with role-based UI (Admin vs. Member) backed by database-level RLS enforcement.</p>
+        </div>
+        <div class="card overview-card">
+          <h3>&#128101; Roles</h3>
+          <div class="persona-row"><div class="persona-av">A</div><div><b>Admin</b><div style="color:var(--ink-soft);font-size:12.5px;">User management, roster publishing, Team Vault writes, vault change-request review</div></div></div>
+          <div class="persona-row"><div class="persona-av">M</div><div><b>Member</b><div style="color:var(--ink-soft);font-size:12.5px;">Own tasks/tickets/OEM cases, reads Team Vault, manages own Personal Vault, requests shift/vault changes</div></div></div>
+        </div>
+        <div class="card overview-card">
+          <h3>&#9889; Architectural Bet</h3>
+          <p>No custom backend, no Service Role key, ever (ADR-008) — every authorization decision is enforced by Postgres RLS policies, not application code the client could bypass. The one exception, added in Phase 12, is a single narrow server route that verifies a Supabase session before proxying to an AI API — deliberately kept as the only server-side surface in the app.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:16px;">
+        <div class="card">
+          <h3 style="font-size:14.5px;margin-bottom:12px;">&#128197; Build Timeline</h3>
+          <div class="timeline">
+            <div class="tl-row"><div class="tl-date mono">08-06</div><div class="tl-text"><b>v1 stabilization, Phases 0–6.</b> Schema consolidated to one source of truth, dead code removed, stubbed context functions fixed, data-layer correctness pass, Password Vault encryption (AES-256-GCM + PBKDF2), docs realigned, Reports export gaps closed.</div></div>
+            <div class="tl-row"><div class="tl-date mono">08-07</div><div class="tl-text"><b>Phases 7–9.</b> Personal Vault decrypt-race fix, Vault Change Request workflow, secret-masking hardening, calendar cross-account leak fix, Employee ID uniqueness constraint.</div></div>
+            <div class="tl-row"><div class="tl-date mono">08-08</div><div class="tl-text"><b>Phase 10 dashboard redesign; Phase 11 full security audit.</b> Self-privilege-escalation trigger, RLS Cleanup (20+ drifted live policies consolidated), password-length floor, security headers, stored-XSS fix — see <span class="mono">docs/security-audit.md</span> and ADR-023.</div></div>
+            <div class="tl-row"><div class="tl-date mono">08-09</div><div class="tl-text"><b>Phase 12 (v2, feature 1) — Email Reframer.</b> First server-side route in the app; RLS infinite-recursion fix (ADR-024); this dashboard rebuilt for Nestor.</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:14.5px;margin-bottom:12px;">&#128100; Engineering Model</h3>
+          <div class="persona-row"><div class="persona-av" style="background:var(--normal-bg);color:var(--normal);">U</div><div><b>Product owner</b><div style="color:var(--ink-soft);font-size:12.5px;">Directs each phase, tests interactively against the live Supabase project, holds sign-off on schema/dependency changes</div></div></div>
+          <div class="persona-row"><div class="persona-av" style="background:var(--strong-bg);color:var(--strong);">C</div><div><b>AI coding agent (Claude Code)</b><div style="color:var(--ink-soft);font-size:12.5px;">Implements each phase, maintains <span class="mono">docs/decisions.md</span> (ADR log) and <span class="mono">EXECUTION_PLAN.md</span>, runs this security audit</div></div></div>
+          <p style="font-size:12px;color:var(--ink-faint);margin-top:6px;">No multi-tenant/team-role model exists in the app itself beyond Admin/Member — see Roles.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARCHITECTURE -->
+    <section class="section" id="sec-architecture">
+      <div class="section-head">
+        <span class="section-eyebrow">Security</span>
+        <h2 class="section-title">Security Architecture</h2>
+        <p class="section-desc">Two reference models — the long-term Goal Architecture and the 12-layer Minimum viable architecture. Click any layer to see its description and current implementation status, assessed against the actual codebase.</p>
+      </div>
+      <div class="arch-tabs">
+        <button class="arch-tab active" data-arch="minimal">Minimal (MVP) Architecture</button>
+        <button class="arch-tab" data-arch="goal">Goal Architecture</button>
+        <button class="arch-tab" data-arch="reference">Reference Diagrams</button>
+      </div>
+      <div class="legend" id="archLegend">
+        <span><span class="dot" style="background:var(--strong);"></span>Strongly implemented</span>
+        <span><span class="dot" style="background:var(--normal);"></span>Normal (needs brushing)</span>
+        <span><span class="dot" style="background:var(--low);"></span>Low (needs more brushing)</span>
+        <span><span class="dot" style="background:var(--none);"></span>Not implemented</span>
+      </div>
+
+      <div class="arch-view active" id="arch-minimal">
+        <div class="layer-stack" id="minimalStack"></div>
+      </div>
+      <div class="arch-view" id="arch-goal">
+        <div class="layer-stack" id="goalStack"></div>
+        <div class="sidepanels">
+          <div class="card sidepanel-card" id="goalSide1"></div>
+          <div class="card sidepanel-card" id="goalSide2"></div>
+        </div>
+      </div>
+      <div class="arch-view" id="arch-reference">
+        <div class="card">
+          <p style="font-size:13.3px;color:var(--ink-soft);">No reference architecture diagram exists for Nestor yet — the two diagrams previously shown here belonged to a different project and were removed rather than left in place or replaced with an invented one. The Minimal and Goal tabs above are the real, evidence-based record of Nestor's security architecture.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- VERSIONS -->
+    <section class="section" id="sec-versions">
+      <div class="section-head">
+        <span class="section-eyebrow">Security</span>
+        <h2 class="section-title">Dependency Version Check</h2>
+        <p class="section-desc">Snapshot dependency audit via <span class="mono">npm audit --json</span> and <span class="mono">npm outdated</span> against <span class="mono">package.json</span>, run 2026-08-08 (commit <span class="mono">2d99b47</span>). CVE IDs are the advisories npm's own audit reported; where exploitability depends on whether Nestor actually reaches the vulnerable code path, that's called out explicitly rather than assumed. <span id="vcSummaryText"></span></p>
+      </div>
+      <div class="vc-filterbar" id="vcFilterbar"></div>
+      <div class="vc-grid" id="vcGrid"></div>
+    </section>
+
+    <!-- COMPLIANCE -->
+    <section class="section" id="sec-compliance">
+      <div class="section-head">
+        <span class="section-eyebrow">Governance</span>
+        <h2 class="section-title">Compliance Posture</h2>
+        <p class="section-desc">Nestor has no stated compliance target of its own (no <span class="mono">PROJECT_CONSTITUTION.md</span> or equivalent) — the frameworks below (ISO 27001 / DPDP Act 2023 / CERT-In / IT Act 2000) are assessed anyway since Nestor stores employee personal data (profiles, roster, tickets) and India-hosted teams are the expected users. Scores are assessed against actual code/schema evidence, never stated intent.</p>
+      </div>
+      <div class="card">
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="150" height="150" viewBox="0 0 150 150">
+              <circle class="track" cx="75" cy="75" r="62"></circle>
+              <circle class="fill" id="complianceRing" cx="75" cy="75" r="62" stroke-dasharray="390" stroke-dashoffset="390"></circle>
+            </svg>
+            <div class="score-num"><b id="complianceNum">0%</b><span>Eligibility</span></div>
+          </div>
+          <div>
+            <h3 style="font-size:16px;margin-bottom:6px;">Overall compliance eligibility: <span style="color:var(--low);">Low</span></h3>
+            <p style="font-size:13.3px;color:var(--ink-soft);max-width:56ch;">RBAC and RLS-based access control are genuinely strong post-audit (Finding 1/2/9 in <span class="mono">docs/security-audit.md</span>). Certification-grade items (ISMS, consent management, retention policy, incident-reporting process, and any audit-log table at all) are simply absent — this is an internal ops tool with no compliance program, not a near-miss.</p>
+          </div>
+        </div>
+        <div class="comp-list" id="compList"></div>
+      </div>
+    </section>
+
+    <!-- OWASP TOP 10 -->
+    <section class="section" id="sec-owasp">
+      <div class="section-head">
+        <span class="section-eyebrow">Security</span>
+        <h2 class="section-title">OWASP Top 10 (2021) Exposure</h2>
+        <p class="section-desc">Each category assessed directly against Nestor's actual source/schema as of 2026-08-08 (commit <span class="mono">2d99b47</span>), largely re-verifying and re-dating <span class="mono">docs/security-audit.md</span>'s findings against the current code. Status is <span class="mono">Mitigated</span> / <span class="mono">Partial</span> / <span class="mono">Vulnerable</span> / <span class="mono">Not Applicable</span> / <span class="mono">Not yet verified</span>, each with the file(s) or finding it's based on.</p>
+      </div>
+      <div class="card">
+        <div class="score-ring-wrap">
+          <div class="score-ring">
+            <svg width="150" height="150" viewBox="0 0 150 150">
+              <circle class="track" cx="75" cy="75" r="62"></circle>
+              <circle class="fill" id="owaspRing" cx="75" cy="75" r="62" stroke-dasharray="390" stroke-dashoffset="390"></circle>
+            </svg>
+            <div class="score-num"><b id="owaspNum">0%</b><span>Exposure Score</span></div>
+          </div>
+          <div>
+            <h3 style="font-size:16px;margin-bottom:6px;">Overall OWASP posture: <span style="color:var(--low);" id="owaspVerdict">—</span></h3>
+            <p style="font-size:13.3px;color:var(--ink-soft);max-width:56ch;" id="owaspSummary"></p>
+          </div>
+        </div>
+        <div class="comp-list" id="owaspList"></div>
+      </div>
+    </section>
+
+    <!-- SECURITY ACTIONS -->
+    <section class="section" id="sec-actions">
+      <div class="section-head">
+        <span class="section-eyebrow">Reporting</span>
+        <h2 class="section-title">Security Action Dashboard</h2>
+        <p class="section-desc">Track every open vulnerability and remediation task as a to-do item. Seeded from the dependency audit and top-priority findings — add, edit, or change status as work progresses. Saved locally in this browser.</p>
+      </div>
+      <div class="actions-toolbar">
+        <div class="actions-filters" id="actionsFilterbar"></div>
+        <button class="btn-primary" id="addActionBtn">+ New Action</button>
+      </div>
+      <div class="action-table" id="actionTable"></div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="section" id="sec-dashboard">
+      <div class="section-head">
+        <span class="section-eyebrow">Reporting</span>
+        <h2 class="section-title">Risk Dashboard</h2>
+        <p class="section-desc">Composite view of dependency risk, architecture implementation gaps, and compliance posture as of 2026-08-08 (commit <span class="mono">2d99b47</span>).</p>
+      </div>
+      <div class="grid grid-4">
+        <div class="card kpi">
+          <span class="label">Composite Security Score</span>
+          <div class="value" id="dashSecurityScore" style="color:var(--low);">–<span class="sub">/100</span></div>
+          <span class="sub">Weighted: dependencies + findings + OWASP + compliance</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Vulnerable Dependencies</span>
+          <div class="value"><span id="dashVulnCount">–</span><span class="sub">/ <span id="dashDepCount">–</span> packages</span></div>
+          <span class="sub" id="dashSevBreakdown">–</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">OWASP Top 10 Exposure</span>
+          <div class="value" id="dashOwaspScore" style="color:var(--low);">–<span class="sub">/100</span></div>
+          <span class="sub">Higher = safer · scored against real code</span>
+        </div>
+        <div class="card kpi">
+          <span class="label">Compliance Eligibility</span>
+          <div class="value" id="dashComplianceScore" style="color:var(--low);">–<span class="sub">/100</span></div>
+          <span class="sub">Evidence-based, not stated intent</span>
+        </div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:16px;">
+        <div class="card">
+          <h3 style="font-size:14.5px;margin-bottom:4px;">Vulnerability Severity Breakdown</h3>
+          <p style="font-size:11.8px;color:var(--ink-faint);margin-bottom:10px;">Click a bar to list its packages.</p>
+          <div class="bars" id="sevBars"></div>
+          <div class="severity-list" id="severityList"></div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:14.5px;margin-bottom:14px;">Minimal Architecture — Layer Implementation</h3>
+          <div id="dashHbars"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3 style="font-size:14.5px;margin-bottom:6px;">Top priority actions</h3>
+        <div class="comp-list">
+          <div class="tl-row" style="border-top:none;padding:9px 0;"><span class="chip high" style="margin-top:1px;">1</span>&nbsp;<span class="tl-text">Run <span class="mono">supabase_schema.sql</span> against production if this hasn't happened since the last few Phase 11/12 fixes — the self-privilege-escalation trigger and RLS Cleanup only protect the live database once it's re-run.</span></div>
+          <div class="tl-row"><span class="chip high" style="margin-top:1px;">2</span>&nbsp;<span class="tl-text"><span class="mono">npm install next@16.3.0</span> — resolves 3 of 6 High CVEs (next, postcss, sharp) in one bump; re-run <span class="mono">npm audit</span> to confirm.</span></div>
+          <div class="tl-row"><span class="chip med" style="margin-top:1px;">3</span>&nbsp;<span class="tl-text">Add a rate limit to <span class="mono">app/api/ai/reframe-email/route.ts</span> — it authenticates the caller but has no per-user/IP throttle on a route that costs real money per call (new finding, added after the last audit's route inventory).</span></div>
+          <div class="tl-row"><span class="chip med" style="margin-top:1px;">4</span>&nbsp;<span class="tl-text">Raise Supabase Auth's own minimum password length in the dashboard to match the app's 8-char RPC floor, and plan the PBKDF2 210k → 600k iteration bump as a real re-encryption migration (Findings 4 &amp; 7, still not applied).</span></div>
+        </div>
+      </div>
+
+      <footer class="note">Snapshot dated 2026-08-08, commit 2d99b47 · Sources: <span class="mono">npm audit</span>/<span class="mono">npm outdated</span>/<span class="mono">semgrep --config=auto</span>, manual review of <span class="mono">supabase_schema.sql</span>/<span class="mono">next.config.ts</span>/<span class="mono">vault-crypto.ts</span>/auth &amp; vault components, <span class="mono">docs/security-audit.md</span>, <span class="mono">EXECUTION_PLAN.md</span>. Scores are assessed from this evidence, not a certified third-party audit.</footer>
+    </section>
+
+    <!-- METHODOLOGY & DATA INTEGRITY -->
+    <section class="section" id="sec-methodology">
+      <div class="section-head">
+        <span class="section-eyebrow">Governance</span>
+        <h2 class="section-title">Methodology &amp; Data Integrity</h2>
+        <p class="section-desc">This dashboard's policy on what a score is allowed to mean, and the per-module audit trail behind every number shown above. See <span class="mono">.claude/commands/security-audit.md</span> ("Rule: no fabricated or unrealistic scores") for the source-of-truth rule text this section implements.</p>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="font-size:14.5px;margin-bottom:10px;">No fabricated or unrealistic scores — the policy</h3>
+        <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13.3px;color:var(--ink-soft);">
+          <li>Every percentage, status, or score on this page resolves to a specific tool output, a specific <span class="mono">file:line</span> citation, or the literal status <b style="color:var(--ink);">"Not yet verified"</b> — never a guessed number presented as fact.</li>
+          <li>"Not yet verified" is excluded from every average, not counted for or against it.</li>
+          <li>Scores are never rounded up to look better than the underlying evidence supports.</li>
+          <li>Every composite score shows its formula and inputs inline (see the Security Score breakdown on Overview) so it can be recomputed by hand from this run's data.</li>
+          <li>All scores are computed live from this run's data arrays — never hand-typed constants carried over from a previous run.</li>
+          <li>Any score that changes between runs must have an explainable cause (new evidence, code change, tool re-run) — an unexplained delta is treated as an audit bug, not a fact.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:14.5px;margin-bottom:4px;">Per-module audit trail</h3>
+        <p style="font-size:11.8px;color:var(--ink-faint);margin-bottom:10px;">Module · Technique · Tool/Command · Scope · Status, filled in from what actually executed during the last audit run.</p>
+        <div id="methodologyTable" style="display:flex;flex-direction:column;gap:0;"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<script>
+/* ---------------- Navigation ---------------- */
+const navitems = document.querySelectorAll('.navitem');
+navitems.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    navitems.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('sec-'+btn.dataset.target).classList.add('active');
+  });
+});
+
+/* ---------------- Theme ---------------- */
+document.querySelectorAll('[data-theme-btn]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-theme-btn]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const mode = btn.dataset.themeBtn;
+    if(mode==='auto'){ document.documentElement.removeAttribute('data-theme'); }
+    else { document.documentElement.setAttribute('data-theme', mode); }
+  });
+});
+
+/* ---------------- Modal helper ---------------- */
+function openModal(html){
+  document.getElementById('modalBody').innerHTML = '<button class="modal-close" onclick="closeModal()">&#10005;</button>' + html;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
+document.getElementById('modalOverlay').addEventListener('click', e=>{ if(e.target.id==='modalOverlay') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+/* ---------------- Architecture data ---------------- */
+// status: strong | normal | low | none
+const statusLabel = {strong:"Strongly implemented", normal:"Normal — needs brushing", low:"Low — needs more brushing", none:"Not implemented"};
+
+const minimalLayers = [
+ {n:1, name:"Perimeter Security Layer", sub:"TLS · WAF · DDoS protection · Rate limiting", status:"none",
+  desc:"No WAF, CDN-level protection, or global rate limiting configured by the app itself — Nestor has no middleware.ts and no perimeter control of its own (docs/security-audit.md Finding 10). TLS termination is whatever the hosting platform provides, not something this codebase configures."},
+ {n:2, name:"Authentication Layer", sub:"Supabase Auth (email+password) · session in localStorage · no MFA", status:"normal",
+  desc:"Auth is fully delegated to Supabase (supabase.auth.signInWithPassword), not custom JWT code — no bcrypt/JWT-secret code to audit in this app. Session token lives in browser localStorage (standard for a pure SPA, but XSS-readable). No MFA, no login rate limiting beyond whatever Supabase Auth applies by default (docs/security-audit.md Finding 10)."},
+ {n:3, name:"Authorization Layer (RBAC)", sub:"is_admin()/is_active_user() · enforced in RLS, not just UI", status:"strong",
+  desc:"Two roles (admin/member), enforced at the database layer via SECURITY DEFINER helpers is_admin()/is_active_user() used consistently across every policy in supabase_schema.sql, plus a BEFORE UPDATE trigger blocking self-privilege-escalation on profiles. UI-level role checks exist too but are not the real boundary — RLS is. Confirmed live in code (Findings 1, 2, 9 — all fixed)."},
+ {n:4, name:"API Security Layer", sub:"Session verification · input length caps · rate limiting · secure headers", status:"low",
+  desc:"The one server route (app/api/ai/reframe-email/route.ts) does verify a real Supabase session and caps input length (6000 chars) before calling Gemini — but has no rate limiting, so an authenticated user could still hammer a route that costs real money per call. Global security headers from next.config.ts do apply to it."},
+ {n:5, name:"Business Logic Layer", sub:"nestor-context.tsx (client) · RLS is the real authority, not a service layer", status:"normal",
+  desc:"By design (ADR-008) there is no server-side service/repository layer — all business logic runs client-side in nestor-context.tsx, with Postgres RLS as the actual enforcement point regardless of what the client sends. Functionally sound given how consistently RLS is applied, but it means a typical layered-backend audit doesn't map cleanly onto this app."},
+ {n:6, name:"Audit Logging Layer", sub:"Login/logout · data actions · role changes · activity trail", status:"none",
+  desc:"No audit_log table exists anywhere in supabase_schema.sql (grepped directly) — confirmed absent in docs/security-audit.md Finding 10 and EXECUTION_PLAN.md. A security_audit_log table was reported visible in at least one connected Supabase project of unknown origin/shape, but this schema has never defined it — treat as untracked drift, not a real audit trail, until inspected."},
+ {n:7, name:"AI Security Layer", sub:"Prompt validation · token/length limits · content filtering", status:"low",
+  desc:"reframe-email/route.ts caps draft length (6000 chars) and never persists input/output, but the user's raw draft text is passed directly into the model call with no content filtering or explicit prompt-injection hardening beyond the system instruction itself. Low risk given this route only rewrites text and has no tool access, but not hardened."},
+ {n:8, name:"File Upload Security Layer", sub:"File type validation · size limit · malware scan · secure storage", status:"none",
+  desc:"Not applicable in the strict sense — Nestor v1 has no file-upload feature anywhere in the app (no attachment/document upload code found in src/ or app/). Marked \"none\" because the layer doesn't exist, not because an existing upload path is unguarded."},
+ {n:9, name:"Database Security Layer", sub:"Row-Level Security · parameterized queries · GRANTs · backups", status:"normal",
+  desc:"RLS is enabled and consistently scoped across all 13 tables post-cleanup (Finding 9); the Supabase client parameterizes all queries client-side, no raw SQL/string interpolation found. Base-role GRANTs were a real historical gap, now fixed with explicit ALTER DEFAULT PRIVILEGES (EXECUTION_PLAN.md). Encrypted/automated backups are Supabase-managed and not independently verified from this codebase."},
+ {n:10, name:"Secrets Management Layer", sub:"NEXT_PUBLIC_* scoping · .env* gitignored · no Service Role key ever held", status:"strong",
+  desc:"No hardcoded API keys/credentials found in a repo-wide grep. .env* is gitignored. GEMINI_API_KEY stays server-only (never NEXT_PUBLIC_*). By deliberate design (ADR-008) this app has never held a Supabase Service Role key at all — the strongest secrets decision in the codebase, since there's no server-side secret capable of bypassing RLS to leak in the first place."},
+ {n:11, name:"Monitoring & Error Handling Layer", sub:"User-facing error toasts · console logs · no alerting", status:"low",
+  desc:"A toast system (Phase 3) now surfaces write failures to the user instead of silently swallowing them, and console.warn/error exist throughout — but there is no SIEM, no anomaly detection, and no alerting on suspicious activity (failed logins, repeated denied writes, etc.)."},
+ {n:12, name:"Backup & Recovery Layer", sub:"Automated backup · restore capability · DR plan", status:"low",
+  desc:"Backups are whatever Supabase's plan provides by default — not configured, scheduled, or tested by anything in this repository, and no documented disaster-recovery plan exists in docs/."},
+];
+
+const goalLayers = [
+ {n:1, name:"Perimeter Security", sub:"DDoS protection · CDN · WAF · IP reputation filtering", status:"none",
+  desc:"None of DDoS protection, CDN-level filtering, WAF, or IP reputation filtering are configured by this app — whatever the hosting platform provides by default, not something in this codebase."},
+ {n:2, name:"Network Security", sub:"Secure VPC/subnets · network ACLs · firewalls · IDS/IPS", status:"none",
+  desc:"Nestor has no server infrastructure of its own to segment — it's a static/serverless Next.js app plus managed Supabase. No VPC, ACL, firewall, or IDS/IPS configuration exists in this repository (not applicable to audit from the app side)."},
+ {n:3, name:"Identity & Access Management", sub:"MFA/SSO · strong password policy · session management", status:"low",
+  desc:"Supabase Auth email+password only — no MFA, no SSO/OAuth/SAML. Password floor raised to 8 characters everywhere in the app's own RPCs (Finding 4, fixed), but Supabase Auth's own dashboard-level minimum has historically defaulted to 6 and needs to be raised independently — still not confirmed done."},
+ {n:4, name:"Authorization (Access Control)", sub:"RLS-based RBAC · least privilege · resource-level access", status:"strong",
+  desc:"RLS enforced on all 13 tables with is_admin()/is_active_user() used consistently, plus column-level protection via the self-privilege-escalation trigger — the strongest layer in the app, and independently re-verified this run (module 2)."},
+ {n:5, name:"Application Security", sub:"Input validation (Zod) · CSP/security headers · rate limiting", status:"normal",
+  desc:"Zod schemas validate forms client-side; CSP/HSTS/X-Frame-Options/X-Content-Type-Options/Referrer-Policy/Permissions-Policy are all set in next.config.ts (Finding 5, fixed, verified live). Still no rate limiting anywhere in the app, including the one paid AI route."},
+ {n:6, name:"Data Security", sub:"Encryption in transit · Password Vault AES-256-GCM at rest · KMS", status:"normal",
+  desc:"Vault credentials (Team + Personal) are genuinely encrypted client-side with AES-256-GCM + PBKDF2 before ever reaching Supabase (Finding/Phase 4) — real encryption at rest for the one dataset that most needs it. General application data (tasks, tickets, profiles) relies only on Supabase's own disk-level encryption, not app-level field encryption, and there is no KMS/key-rotation infrastructure."},
+ {n:7, name:"Platform & Infra Security", sub:"Dependency scanning · patch management · vulnerability scanning", status:"none",
+  desc:"No Dependabot, CI dependency-scanning, or automated patch-management process exists in the repository — dependency updates are entirely manual (npm audit/npm outdated run ad hoc, as in this audit)."},
+];
+
+const goalMonitoring = [
+ {name:"SIEM (Security Info & Event Mgmt)", status:"none"},
+ {name:"Real-time Threat Monitoring", status:"none"},
+ {name:"Anomaly Detection", status:"none"},
+ {name:"Alerting & Notifications", status:"low"},
+ {name:"Log Aggregation", status:"none"},
+];
+const goalCompliance = [
+ {name:"ISO 27001", status:"none"},
+ {name:"DPDP Act 2023", status:"low"},
+ {name:"CERT-In Guidelines", status:"none"},
+ {name:"IT Act 2000", status:"low"},
+ {name:"Audit Trails", status:"none"},
+ {name:"Data Retention Policies", status:"none"},
+ {name:"Consent Management", status:"none"},
+ {name:"Right to Delete/Export", status:"low"},
+];
+
+function statusChipHtml(status){
+  return `<span class="chip ${status}"><span class="dot"></span>${statusLabel[status]}</span>`;
+}
+function renderLayerStack(container, arr){
+  container.innerHTML='';
+  arr.forEach(l=>{
+    const row = document.createElement('div');
+    row.className='layer';
+    row.innerHTML = `<div class="layer-num">${l.n}</div>
+      <div class="layer-body"><h4>${l.name}</h4><span>${l.sub}</span></div>
+      ${statusChipHtml(l.status)}`;
+    row.addEventListener('click', ()=>{
+      openModal(`<h3>${l.n}. ${l.name}</h3><p class="purpose">${l.sub}</p>
+        <div class="sectionlabel">Description</div>
+        <p style="font-size:13.4px;">${l.desc}</p>
+        <div class="sectionlabel">Implementation status</div>
+        ${statusChipHtml(l.status)}`);
+    });
+    container.appendChild(row);
+  });
+}
+renderLayerStack(document.getElementById('minimalStack'), minimalLayers);
+renderLayerStack(document.getElementById('goalStack'), goalLayers);
+
+function renderSidepanel(el, title, items){
+  el.innerHTML = `<h4>${title}</h4>` + items.map(it=>
+    `<div class="sidepanel-item" data-name="${it.name}" data-status="${it.status}" data-desc="${it.desc||''}">
+      <span class="sp-label">${it.name}</span>${statusChipHtml(it.status)}
+     </div>`).join('');
+  el.querySelectorAll('.sidepanel-item').forEach(item=>{
+    item.addEventListener('click', ()=>{
+      openModal(`<h3>${item.dataset.name}</h3>
+        <div class="sectionlabel">Implementation status</div>
+        ${statusChipHtml(item.dataset.status)}`);
+    });
+  });
+}
+renderSidepanel(document.getElementById('goalSide1'), 'Monitoring & Detection Layer', goalMonitoring);
+renderSidepanel(document.getElementById('goalSide2'), 'Compliance & Governance', goalCompliance);
+
+document.querySelectorAll('.arch-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.arch-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('.arch-view').forEach(v=>v.classList.remove('active'));
+    document.getElementById('arch-'+tab.dataset.arch).classList.add('active');
+    document.getElementById('archLegend').style.display = tab.dataset.arch === 'reference' ? 'none' : 'flex';
+  });
+});
+
+/* ---------------- Version check data ---------------- */
+const packages = [
+ {name:"next", ver:"16.2.10", sev:"high", vuln:true, issue:"9 advisories from npm audit against this version, all fixed in 16.3.0 (non-major, no breaking-change flag): middleware/proxy bypass, DoS in Server Actions, SSRF in Server Actions and in rewrites, unauthenticated disclosure of internal Server Function endpoints, DoS via SVG image optimization, unbounded Edge Server Action payload, plus 2 cache-confusion advisories.", cves:["Multiple — see npm audit"], action:"npm install next@16.3.0; re-run npm audit to confirm clean."},
+ {name:"postcss", ver:"(via next)", sev:"high", vuln:true, issue:"Transitive dependency pulled in by next — XSS in CSS stringify output plus arbitrary .map file disclosure via source-map path traversal (4 advisories). Not a direct dependency of Nestor.", cves:["Multiple — see npm audit"], action:"Resolved automatically by the next@16.3.0 bump — no separate action needed."},
+ {name:"sharp", ver:"(via next)", sev:"high", vuln:true, issue:"Transitive dependency pulled in by next — bundled libvips CVEs. Not a direct dependency of Nestor.", cves:["Multiple — see npm audit"], action:"Resolved automatically by the next@16.3.0 bump — no separate action needed."},
+ {name:"brace-expansion", ver:"(dev, via eslint tooling)", sev:"high", vuln:true, issue:"DoS via unbounded expansion length/intermediate arrays, causing an out-of-memory crash. Only reachable via @typescript-eslint/typescript-estree at lint time — devDependency, never shipped to the browser.", cves:["GHSA-mh99-v99m-4gvg","GHSA-rgw5-rvv9-x895"], action:"npm audit fix — dev-only, no production exposure."},
+ {name:"js-yaml", ver:"(dev, transitive)", sev:"high", vuln:true, issue:"Quadratic CPU consumption in !!omap resolution. Dev-tooling transitive dependency, not shipped to the browser.", cves:["GHSA-5p4m-2wfm-xmqj"], action:"npm audit fix — dev-only, no production exposure."},
+ {name:"nanoid", ver:"(dev, transitive)", sev:"high", vuln:true, issue:"Predictable output when called with a non-integer/negative size argument. Dev-tooling transitive dependency, not shipped to the browser.", cves:["See npm audit"], action:"npm audit fix — dev-only, no production exposure."},
+ {name:"@supabase/supabase-js", ver:"2.110.2", sev:"lowsev", vuln:false, issue:"No advisory reported by npm audit. 2 minor versions behind latest (2.112.2).", cves:[], action:"Upgrade during routine maintenance."},
+ {name:"react / react-dom", ver:"19.2.4", sev:"lowsev", vuln:false, issue:"No advisory reported. 4 patch versions behind latest (19.2.8).", cves:[], action:"Upgrade during routine maintenance."},
+ {name:"react-hook-form", ver:"7.81.0", sev:"lowsev", vuln:false, issue:"No advisory reported. Several minor versions behind (7.85.0).", cves:[], action:"Upgrade during routine maintenance."},
+ {name:"@hookform/resolvers", ver:"5.4.0", sev:"lowsev", vuln:false, issue:"No advisory reported. Behind latest (5.7.1).", cves:[], action:"Upgrade during routine maintenance."},
+ {name:"zod", ver:"^4.4.3", sev:"lowsev", vuln:false, issue:"No advisory reported for the installed range.", cves:[], action:"Keep updated."},
+ {name:"recharts", ver:"3.9.2", sev:"lowsev", vuln:false, issue:"No advisory reported. Behind latest (3.10.1).", cves:[], action:"Upgrade during routine maintenance."},
+ {name:"framer-motion", ver:"12.42.2", sev:"lowsev", vuln:false, issue:"No advisory reported. A major version (13.0.0) is available but not required.", cves:[], action:"Evaluate the major bump separately; no urgency."},
+ {name:"lucide-react", ver:"1.24.0", sev:"lowsev", vuln:false, issue:"No advisory reported. Behind latest (1.30.0).", cves:[], action:"Upgrade during routine maintenance."},
+ {name:"jspdf / jspdf-autotable", ver:"latest at install", sev:"lowsev", vuln:false, issue:"Added in Phase 6 for real PDF export; npm audit reported no new vulnerabilities at the time (verified per EXECUTION_PLAN.md), unchanged this run.", cves:[], action:"No action needed."},
+ {name:"tailwindcss / @tailwindcss/postcss", ver:"4.3.2", sev:"lowsev", vuln:false, issue:"No advisory reported. Patch version behind (4.3.3).", cves:[], action:"Upgrade during routine maintenance."},
+ {name:"eslint", ver:"9.39.5", sev:"lowsev", vuln:false, issue:"No advisory reported directly against eslint. A major version (10.8.1) is available.", cves:[], action:"Evaluate the major bump separately; not urgent."},
+ {name:"eslint-config-next", ver:"16.2.10", sev:"lowsev", vuln:false, issue:"No advisory reported directly. Tracks the next version — will move to 16.3.0 alongside it.", cves:[], action:"Bump together with next."},
+ {name:"typescript", ver:"5.9.3", sev:"lowsev", vuln:false, issue:"No advisory reported. A major version (7.0.2) is available but out of scope for this pass.", cves:[], action:"Evaluate the major bump separately; not urgent."},
+ {name:"@types/node, @types/react, @types/react-dom", ver:"see package.json", sev:"lowsev", vuln:false, issue:"Type-only devDependencies; no advisories reported.", cves:[], action:"Upgrade during routine maintenance."},
+];
+
+const sevMeta = {high:{label:"High", cls:"high"}, med:{label:"Medium", cls:"med"}, lowsev:{label:"Low / None", cls:"lowsev"}};
+const vcGrid = document.getElementById('vcGrid');
+const vcFilterbar = document.getElementById('vcFilterbar');
+let vcActiveFilter = 'all';
+const filters = [{k:'all',label:'All ('+packages.length+')'},{k:'high',label:'High ('+packages.filter(p=>p.sev==='high').length+')'},{k:'med',label:'Medium ('+packages.filter(p=>p.sev==='med').length+')'},{k:'lowsev',label:'Low / None ('+packages.filter(p=>p.sev==='lowsev').length+')'}];
+filters.forEach(f=>{
+  const b = document.createElement('button');
+  b.className = 'vc-filter'+(f.k==='all'?' active':'');
+  b.textContent = f.label;
+  b.addEventListener('click', ()=>{
+    vcActiveFilter = f.k;
+    document.querySelectorAll('.vc-filter').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    renderVc();
+  });
+  vcFilterbar.appendChild(b);
+});
+function renderVc(){
+  vcGrid.innerHTML='';
+  packages.filter(p=> vcActiveFilter==='all' || p.sev===vcActiveFilter).forEach(p=>{
+    const m = sevMeta[p.sev];
+    const card = document.createElement('div');
+    card.className='card vc-card';
+    card.innerHTML = `
+      <div class="vc-top">
+        <div><div class="vc-name">${p.name}</div><div class="vc-ver">v${p.ver}</div></div>
+        <span class="chip ${m.cls}"><span class="dot"></span>${p.vuln ? m.label+" · Vulnerable" : "Not vulnerable"}</span>
+      </div>
+      <p class="vc-issue">${p.issue}</p>
+      ${p.cves.length ? `<div class="vc-cve">${p.cves.map(c=>`<span>${c}</span>`).join('')}</div>` : ''}
+      <div class="vc-action"><b>Remediation:</b> ${p.action}</div>`;
+    vcGrid.appendChild(card);
+  });
+}
+renderVc();
+const vulnPackageCount = packages.filter(p=>p.vuln).length;
+document.getElementById('heroDepCount').textContent = packages.length;
+document.getElementById('heroVulnCount').textContent = vulnPackageCount;
+document.getElementById('vcSummaryText').textContent = `${vulnPackageCount} of ${packages.length} pinned packages carry a verified CVE.`;
+
+/* ---------------- Compliance data (with fulfilled/remaining checklist) ---------------- */
+const compliance = [
+ {name:"Audit Trails", pct:0, note:"No audit_log table exists anywhere in the tracked schema — confirmed absent, not just incomplete.",
+  fulfilled:[],
+  remaining:["No audit_log/activity_log table found in supabase_schema.sql (grepped directly)","A security_audit_log table was reported visible in at least one connected Supabase project of unknown origin — not defined by this schema, treat as untracked drift (EXECUTION_PLAN.md, docs/security-audit.md Finding 10)","No login attempt, role-change, or vault-access logging of any kind","Toasts (Phase 3) surface write failures to the user but write nothing to a durable log"]},
+ {name:"IT Act 2000 (baseline reasonable security)", pct:45, note:"RLS-enforced RBAC and delegated, managed auth partially satisfy baseline expectations.",
+  fulfilled:["Password hashing/verification delegated to Supabase Auth, not custom code (no bcrypt/MD5 implementation in this app to audit)","Role-based access control enforced at the database layer via is_admin()/is_active_user(), not client-trusted (supabase_schema.sql)","Security headers (CSP/HSTS/X-Frame-Options/etc.) added in next.config.ts, verified live (Finding 5, fixed)"],
+  remaining:["No documented Information Security Policy / ISMS artifact","No formal incident-reporting procedure to CERT-In within mandated windows","No periodic security audit by an empanelled auditor (this audit is self-run, not third-party)","No rate limiting anywhere in the app, including the one paid AI route — confirmed by grep, no limiter package present"]},
+ {name:"DPDP Act 2023", pct:15, note:"RLS-based access control exists, but no consent flow, retention policy, or documented cross-border transfer basis.",
+  fulfilled:["RLS restricts who can write personal/employee data (profiles, tasks, tickets) per-row (supabase_schema.sql, re-verified this run)"],
+  remaining:["profiles is fully SELECT-readable by any authenticated user — every member can see every other user's email/employee ID/role/status directly, not just via curated UI views (docs/security-audit.md Finding 8, an accepted design tradeoff, not yet formally signed off as compliant)","No consent capture/management mechanism found anywhere in the app","No data retention/erasure policy implemented","Draft text submitted to the Email Reframer (Phase 12) is sent to Google's Gemini API (US-hosted) with no documented cross-border transfer basis — the same class of gap as the prior Claude-API finding in the reference audit template","No Data Protection Officer / grievance redressal process defined"]},
+ {name:"ISO 27001", pct:10, note:"No ISMS, no certification process — some Annex A-aligned technical controls exist by accident of good engineering, not by a compliance program.",
+  fulfilled:["Access control policy exists in effect (RLS + role helpers), even without being documented as an ISO control"],
+  remaining:["No formal ISMS scope, risk register, or Statement of Applicability","No internal/external audit conducted before this self-run one","No asset inventory or data-classification policy","No business continuity / incident response plan documented anywhere in docs/"]},
+ {name:"CERT-In Guidelines", pct:0, note:"No incident-reporting mechanism, confirmed retention window, or designated contact.",
+  fulfilled:[],
+  remaining:["No 6-hour incident reporting process to CERT-In","No confirmed log-retention window (there is no log to retain — see Audit Trails)","No designated point of contact for CERT-In coordination","No vulnerability disclosure/patch management SLA — dependency updates are ad hoc (this audit)"]},
+ {name:"Right to Delete / Export", pct:15, note:"Admin-initiated account deletion exists; nothing self-service.",
+  fulfilled:["admin_delete_user RPC lets an admin hard-delete any non-self account, with a self-delete guard (supabase_schema.sql)","Reports module exports business data (CSV/HTML/PDF) — repurposable but not built as a personal-data export feature"],
+  remaining:["No user-facing 'export my data' feature","No user-facing 'delete my data' self-service request flow","No documented erasure procedure for a DPDP-triggered request specifically"]},
+ {name:"Data Retention Policies", pct:0, note:"Not implemented or documented as an enforced policy anywhere.",
+  fulfilled:[],
+  remaining:["No defined retention period per data category","No automated purge/archival job for any table","No documented policy for how long vault entries, tickets, or OEM cases are kept after account deletion"]},
+ {name:"Consent Management", pct:0, note:"No consent capture or management mechanism found.",
+  fulfilled:[],
+  remaining:["No consent capture at signup/login (Supabase Auth handles signup, no consent step added on top)","No granular consent for the Email Reframer sending draft text to a third-party AI API","No consent withdrawal mechanism","No consent audit trail"]},
+];
+const compList = document.getElementById('compList');
+function pctColor(pct){ return pct>=60?'var(--strong)':pct>=35?'var(--normal)':pct>=15?'var(--low)':'var(--none)'; }
+compliance.forEach((c,i)=>{
+  const item = document.createElement('div');
+  item.className='comp-acc-item';
+  item.innerHTML = `
+    <div class="comp-acc-head">
+      <div><div class="comp-name">${c.name}</div><div class="comp-note">${c.note}</div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${c.pct}%; background:${pctColor(c.pct)};"></div></div>
+      <div class="comp-pct">${c.pct}%</div>
+      <div class="comp-acc-chevron">&#9656;</div>
+    </div>
+    <div class="comp-acc-body">
+      <div class="comp-acc-inner">
+        <div class="comp-checklist">
+          <div class="comp-checklist-title ful">Fulfilled (${c.fulfilled.length})</div>
+          ${c.fulfilled.length ? c.fulfilled.map(f=>`<div class="comp-check-row ful"><span class="ico">&#10003;</span>${f}</div>`).join('') : '<div class="comp-check-row" style="color:var(--ink-faint);">None yet</div>'}
+        </div>
+        <div class="comp-checklist">
+          <div class="comp-checklist-title rem">Remaining (${c.remaining.length})</div>
+          ${c.remaining.map(r=>`<div class="comp-check-row rem"><span class="ico">&#10007;</span>${r}</div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+  item.querySelector('.comp-acc-head').addEventListener('click', ()=>{ item.classList.toggle('open'); });
+  compList.appendChild(item);
+});
+const overallCompliance = Math.round(compliance.reduce((a,c)=>a+c.pct,0)/compliance.length);
+document.getElementById('complianceNum').textContent = overallCompliance+'%';
+const ringLen = 2*Math.PI*62;
+const ring = document.getElementById('complianceRing');
+ring.setAttribute('stroke-dasharray', ringLen);
+setTimeout(()=>{ ring.style.strokeDashoffset = ringLen - (ringLen*overallCompliance/100); }, 200);
+document.getElementById('heroComplianceScore').textContent = overallCompliance+'%';
+
+/* ---------------- OWASP Top 10 (2021) — assessed against actual Nestor source/schema, 2026-08-08 ---------------- */
+const OWASP_STATUS_META = {
+  Mitigated:{cls:'strong', score:100},
+  'Not Applicable':{cls:'normal', score:100},
+  Partial:{cls:'low', score:50},
+  Vulnerable:{cls:'none', score:0},
+  'Not yet verified':{cls:'med', score:null},
+};
+const owasp = [
+ {id:'A01', name:'A01: Broken Access Control', status:'Partial',
+  fulfilled:["is_admin()/is_active_user() SECURITY DEFINER helpers used consistently across every RLS policy, not a client-trusted check (supabase_schema.sql)","BEFORE UPDATE trigger prevent_self_privilege_escalation blocks any user writing role/status/employee_id on their own row (Finding 1, re-verified this run — trigger present at supabase_schema.sql:229-269)","Finding 9's \"0. RLS Cleanup\" section removed 20+ drifted/dangerous USING(true) policies and rebuilt one minimal set per table — re-verified: no CREATE POLICY ... USING (true) remains on tickets/oem_cases/roster_assignments/shift_requests"],
+  remaining:["profiles is fully SELECT-readable by any authenticated user (Finding 8) — an accepted tradeoff for the roster/team-list UI, not formally signed off as compliant","No automated authorization test suite to catch a future RLS policy regression"]},
+ {id:'A02', name:'A02: Cryptographic Failures', status:'Partial',
+  fulfilled:["Password Vault (Team + Personal) encrypted client-side with AES-256-GCM, key derived via PBKDF2-HMAC-SHA256 at 210,000 iterations (src/shared/lib/vault-crypto.ts, re-verified this run)","Two independent encryption keys for Team vs. Personal vault so rotating one never strands the other"],
+  remaining:["210,000 PBKDF2 iterations was OWASP's 2023 baseline; current guidance recommends 600,000 — not bumped yet, needs a real re-encryption migration, not a drive-by constant change (Finding 7)","Supabase session token lives in browser localStorage, not an httpOnly cookie — inherent to a pure-SPA/no-backend architecture (ADR-008), but still XSS-readable in principle","General application data (tasks, tickets, profiles) has no field-level encryption — relies entirely on Supabase's own disk encryption"]},
+ {id:'A03', name:'A03: Injection', status:'Mitigated',
+  fulfilled:["All data access goes through the Supabase JS client, which parameterizes queries — a repo-wide grep for string-concatenated/template-literal SQL in src/ and app/ found none","Every Postgres RPC in supabase_schema.sql uses typed plpgsql parameters, not dynamic SQL built from string concatenation"],
+  remaining:["No fuzz/property-based test suite specifically targeting RPC inputs"]},
+ {id:'A04', name:'A04: Insecure Design', status:'Partial',
+  fulfilled:["RLS-only, no-Service-Role-key architecture is a deliberate, documented bet (ADR-008), not an accident — it removes an entire class of \"leaked server secret bypasses RLS\" risk by construction"],
+  remaining:["Phase 12 added the app's first server-side route (Email Reframer) without extending that same design discipline to rate limiting — a route that costs real money per call has no throttle, a gap the RLS-only threat model didn't originally need to consider"]},
+ {id:'A05', name:'A05: Security Misconfiguration', status:'Partial',
+  fulfilled:["CSP, X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, Permissions-Policy, and HSTS all set via next.config.ts headers() (Finding 5, fixed, verified live — re-confirmed present this run)"],
+  remaining:["No rate limiting anywhere in the app, including the one paid AI route — confirmed by grep, no limiter package present","CSP allows 'unsafe-inline' for scripts/styles (documented tradeoff for the inline theme-bootstrap script and Tailwind runtime styles, not tightened to a nonce-based approach yet)"]},
+ {id:'A06', name:'A06: Vulnerable and Outdated Components', status:'Vulnerable',
+  fulfilled:["Dependencies are version-pinned via package-lock.json, so the vulnerable versions in use are precisely known, not floating"],
+  remaining:["npm audit reports 6 High-severity advisories today: next 16.2.10 (fixed in 16.3.0, also resolves transitive postcss/sharp), plus brace-expansion/js-yaml/nanoid (dev-only, via eslint tooling, not shipped to the browser)"]},
+ {id:'A07', name:'A07: Identification and Authentication Failures', status:'Partial',
+  fulfilled:["Minimum password length raised to 8 characters in all three admin RPCs and every client form (Finding 4, fixed, re-verified this run at supabase_schema.sql:904,997,1084)"],
+  remaining:["No MFA/2FA anywhere in the app (tracked in docs/roadmap.md as a known future item)","No rate limiting/lockout on login beyond whatever Supabase Auth applies by default — no limiter code found in this app","Supabase Auth's own dashboard-level minimum password length (historically defaults to 6) has not been confirmed raised independently of the app's RPC checks"]},
+ {id:'A08', name:'A08: Software and Data Integrity Failures', status:'Partial',
+  fulfilled:["Dependencies hash-locked via package-lock.json (single lockfile — no separate backend lockfile to drift, since there is no backend)"],
+  remaining:["No CI/CD pipeline in the repo (no .github/workflows found) and no Dependabot config — dependency updates and integrity checks are entirely manual, including this audit's npm audit/npm outdated run"]},
+ {id:'A09', name:'A09: Security Logging and Monitoring Failures', status:'Vulnerable',
+  fulfilled:["A toast system (Phase 3) surfaces write failures to the user instead of silently swallowing them — a UX improvement, not a security control"],
+  remaining:["No audit_log table exists anywhere in the tracked schema — confirmed by grep, not just undocumented (Finding 10)","No alerting/SIEM integration, no anomaly detection, no record of failed logins or denied writes anywhere"]},
+ {id:'A10', name:'A10: Server-Side Request Forgery (SSRF)', status:'Not Applicable',
+  fulfilled:["The app's only server-initiated outbound HTTP call targets a fixed, hardcoded endpoint (Gemini's generateContent API in app/api/ai/reframe-email/route.ts) — a repo-wide check found no route that fetches a user-supplied URL server-side"],
+  remaining:["Re-check if a future connector (e.g. a user-configurable webhook, per the deferred Helpdesk360 idea in EXECUTION_PLAN.md) is added later — SSRF risk would then apply"]},
+];
+const owaspList = document.getElementById('owaspList');
+owasp.forEach(o=>{
+  const meta = OWASP_STATUS_META[o.status];
+  const item = document.createElement('div');
+  item.className='comp-acc-item';
+  item.innerHTML = `
+    <div class="comp-acc-head">
+      <div><div class="comp-name">${o.name}</div><div class="comp-note"><span class="chip ${meta.cls}" style="margin-top:3px;"><span class="dot"></span>${o.status}</span></div></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${meta.score===null?100:meta.score}%; background:${meta.score===null?'var(--med)':(meta.score>=100?'var(--strong)':meta.score>=50?'var(--low)':'var(--none)')};"></div></div>
+      <div class="comp-pct">${meta.score===null?'N/V':meta.score+'%'}</div>
+      <div class="comp-acc-chevron">&#9656;</div>
+    </div>
+    <div class="comp-acc-body">
+      <div class="comp-acc-inner">
+        <div class="comp-checklist">
+          <div class="comp-checklist-title ful">Evidence found (${o.fulfilled.length})</div>
+          ${o.fulfilled.length ? o.fulfilled.map(f=>`<div class="comp-check-row ful"><span class="ico">&#10003;</span>${f}</div>`).join('') : '<div class="comp-check-row" style="color:var(--ink-faint);">None found</div>'}
+        </div>
+        <div class="comp-checklist">
+          <div class="comp-checklist-title rem">Gap / risk (${o.remaining.length})</div>
+          ${o.remaining.length ? o.remaining.map(r=>`<div class="comp-check-row rem"><span class="ico">&#10007;</span>${r}</div>`).join('') : '<div class="comp-check-row" style="color:var(--ink-faint);">None identified</div>'}
+        </div>
+      </div>
+    </div>`;
+  item.querySelector('.comp-acc-head').addEventListener('click', ()=>{ item.classList.toggle('open'); });
+  owaspList.appendChild(item);
+});
+const owaspScored = owasp.map(o=>OWASP_STATUS_META[o.status].score).filter(s=>s!==null);
+const owaspScore = Math.round(owaspScored.reduce((a,b)=>a+b,0)/owaspScored.length);
+const owaspUnverifiedCount = owasp.filter(o=>o.status==='Not yet verified').length;
+document.getElementById('owaspNum').textContent = owaspScore+'%';
+document.getElementById('heroOwaspScore').textContent = owaspScore+'%';
+document.getElementById('owaspVerdict').textContent = owaspScore>=70?'Good':owaspScore>=45?'Moderate':'Weak';
+document.getElementById('owaspSummary').textContent = `Scored across ${owaspScored.length} of 10 categories (Not Applicable counts as fully mitigated; ${owaspUnverifiedCount} category not yet verified is excluded from the average, not counted for or against). Weakest: Security Misconfiguration, Vulnerable Components, and Authentication Failures — all three trace to concrete, cited code, not estimates.`;
+const owaspRingLen = 2*Math.PI*62;
+const owaspRing = document.getElementById('owaspRing');
+owaspRing.setAttribute('stroke-dasharray', owaspRingLen);
+setTimeout(()=>{ owaspRing.style.strokeDashoffset = owaspRingLen - (owaspRingLen*owaspScore/100); }, 200);
+
+/* ---------------- Dashboard hbars ---------------- */
+const dashHbars = document.getElementById('dashHbars');
+const statusPct = {strong:100, normal:65, low:35, none:5};
+const statusColor = {strong:'var(--strong)', normal:'var(--normal)', low:'var(--low)', none:'var(--none)'};
+minimalLayers.forEach(l=>{
+  const row = document.createElement('div');
+  row.className='hbar-row';
+  row.innerHTML = `<div class="hbar-label">${l.n}. ${l.name}</div>
+    <div class="hbar-track"><div class="hbar-fill" style="width:${statusPct[l.status]}%; background:${statusColor[l.status]};"></div></div>
+    <div class="hbar-val mono">${statusPct[l.status]}</div>`;
+  dashHbars.appendChild(row);
+});
+
+/* ---------------- Clickable severity breakdown (Dashboard) ---------------- */
+const sevBarsData = [
+ {key:'high', label:'High', color:'var(--high)'},
+ {key:'med', label:'Medium', color:'var(--med)'},
+ {key:'lowsev', label:'Low / None', color:'var(--lowsev)'},
+];
+const sevBars = document.getElementById('sevBars');
+const severityListEl = document.getElementById('severityList');
+const maxSevCount = Math.max(...sevBarsData.map(s=>packages.filter(p=>p.sev===s.key).length));
+let activeSevBar = null;
+sevBarsData.forEach(s=>{
+  const count = packages.filter(p=>p.sev===s.key).length;
+  const bar = document.createElement('div');
+  bar.className='bar';
+  bar.innerHTML = `<div class="stem" style="height:${Math.max(8,(count/maxSevCount)*100)}%;background:${s.color};"></div><span class="lbl">${count} ${s.label}</span>`;
+  bar.addEventListener('click', ()=>{
+    if(activeSevBar===s.key){ activeSevBar=null; severityListEl.classList.remove('open'); return; }
+    activeSevBar = s.key;
+    const matches = packages.filter(p=>p.sev===s.key);
+    severityListEl.innerHTML = `<div style="font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint);margin-bottom:4px;">${s.label} severity (${matches.length})</div>` +
+      matches.map(p=>`<div class="severity-list-item"><span><b>${p.name}</b> <span class="mono" style="color:var(--ink-faint);">v${p.ver}</span></span><span style="color:var(--ink-soft);">${p.vuln ? (p.cves[0]||'Vulnerable') : 'Not vulnerable'}</span></div>`).join('');
+    severityListEl.classList.add('open');
+  });
+  sevBars.appendChild(bar);
+});
+
+/* ---------------- Security Action Dashboard ---------------- */
+const ACTION_STATUSES = [
+ {k:'open', label:'Open'},
+ {k:'in_progress', label:'In Progress'},
+ {k:'on_hold', label:'On Hold'},
+ {k:'resolved', label:'Resolved'},
+ {k:'closed', label:'Closed'},
+];
+const SEVERITY_OPTS = ['Critical','High','Medium','Low'];
+
+function seedActions(){
+  const seeded = [
+    {sev:'High', title:'Upgrade next to 16.3.0', desc:'9 npm-audit advisories against 16.2.10, all fixed in this non-major bump — also resolves transitive postcss and sharp CVEs in one step.', ref:'npm audit — see Dependency Versions', status:'open'},
+    {sev:'High', title:'Run npm audit fix for dev-tooling CVEs', desc:'brace-expansion, js-yaml, nanoid — all transitive devDependencies via eslint/typescript-eslint, not shipped to the browser, but still worth clearing.', ref:'npm audit', status:'open'},
+    {sev:'High', title:'Add an audit_log table', desc:'No audit_log/activity_log table exists anywhere in supabase_schema.sql — confirmed by direct grep, not just undocumented. A security_audit_log table of unknown origin was reported visible in at least one connected Supabase project; inspect it before building a new one from scratch.', ref:'docs/security-audit.md Finding 10, EXECUTION_PLAN.md', status:'open'},
+    {sev:'Medium', title:'Add rate limiting to the Email Reframer route', desc:'app/api/ai/reframe-email/route.ts verifies the Supabase session and caps input length, but has no per-user/IP rate limit on a route that costs real money per call — a new finding not present in the prior audit since this route did not exist yet.', ref:'app/api/ai/reframe-email/route.ts', status:'open'},
+    {sev:'Medium', title:'Raise PBKDF2 to 600,000 iterations', desc:'210,000 iterations was the 2023 OWASP baseline; current guidance recommends 600k. Requires a real re-encryption migration (bump → re-wrap every DEK → verify), not a drive-by constant change, since it changes the derived key for every existing vault entry.', ref:'src/shared/lib/vault-crypto.ts:11 — docs/security-audit.md Finding 7', status:'open'},
+    {sev:'Medium', title:"Raise Supabase Auth's own minimum password length", desc:"The app's own RPCs now enforce 8 characters (fixed), but Supabase Auth's dashboard-level minimum has historically defaulted to 6 and is not gated by this app's checks — needs raising independently in the Supabase dashboard.", ref:'docs/security-audit.md Finding 4', status:'open'},
+    {sev:'Low', title:'Use a constant log format string in nestor-context.tsx:345', desc:'Semgrep (javascript.lang.security.audit.unsafe-formatstring) flagged string concatenation with a non-literal variable passed into a console.log call — if the interpolated value ever contains a format specifier it could forge the log line. Low real risk (console.log, not a server-side logger anyone else reads), but a one-line fix.', ref:'src/shared/context/nestor-context.tsx:345 — CWE-134', status:'open'},
+    {sev:'Low', title:'Add MFA/2FA', desc:'No multi-factor authentication exists anywhere in the app; already tracked as a future item.', ref:'docs/roadmap.md', status:'open'},
+    {sev:'Low', title:'Add dependency-scanning automation', desc:'No Dependabot config or CI pipeline exists in the repo (no .github/workflows) — dependency updates and audits are entirely manual, including this one.', ref:'A08/A06 — no .github/workflows found', status:'open'},
+    {sev:'Critical', title:'Self-privilege-escalation trigger', desc:'Any member could elevate their own role/status/employee_id via a direct Supabase update call — closed with a BEFORE UPDATE trigger, re-verified present in supabase_schema.sql this run.', ref:'docs/security-audit.md Finding 1', status:'resolved'},
+    {sev:'High', title:'RLS Cleanup — 20+ drifted/dangerous live policies', desc:'USING(true) policies on tickets/oem_cases/roster_assignments/shift_requests silently neutralized properly-scoped policies beside them; profiles had 8 overlapping policies. Consolidated to one clean policy set per table via is_admin()/is_active_user(), re-verified present this run.', ref:'docs/security-audit.md Findings 2 & 9', status:'resolved'},
+    {sev:'Medium', title:'Weak password policy (server-side RPCs accepted 1-character passwords)', desc:'Raised to an 8-character floor in admin_create_user, admin_reset_password, and complete_initial_password, plus every client form — re-verified present this run.', ref:'docs/security-audit.md Finding 4', status:'resolved'},
+    {sev:'Medium', title:'No security headers or CSP', desc:'CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, and Permissions-Policy added in next.config.ts, verified live — re-confirmed present this run.', ref:'docs/security-audit.md Finding 5', status:'resolved'},
+    {sev:'Medium', title:"Stored XSS via javascript: URI in Vault Change Request \"Secure Link\"", desc:'Submission now rejects any non-http(s) scheme, and the render path also refuses to output an unsafe href as defense in depth — re-verified present this run.', ref:'docs/security-audit.md Finding 6', status:'resolved'},
+  ];
+  return seeded.map((a,i)=>({ id:'seed-'+i, ...a }));
+}
+
+function loadActions(){
+  try {
+    const raw = localStorage.getItem('tip_security_actions');
+    if(raw) return JSON.parse(raw);
+  } catch(e){}
+  const seeded = seedActions();
+  saveActions(seeded);
+  return seeded;
+}
+function saveActions(list){
+  try { localStorage.setItem('tip_security_actions', JSON.stringify(list)); } catch(e){}
+}
+let actions = loadActions();
+let actionsFilter = 'all';
+
+const actionsFilterbar = document.getElementById('actionsFilterbar');
+const actionTable = document.getElementById('actionTable');
+
+function renderActionsFilterbar(){
+  actionsFilterbar.innerHTML='';
+  const counts = {all: actions.length};
+  ACTION_STATUSES.forEach(s=> counts[s.k] = actions.filter(a=>a.status===s.k).length);
+  const opts = [{k:'all', label:'All ('+counts.all+')'}, ...ACTION_STATUSES.map(s=>({k:s.k, label:s.label+' ('+counts[s.k]+')'}))];
+  opts.forEach(o=>{
+    const b = document.createElement('button');
+    b.className='action-filter'+(actionsFilter===o.k?' active':'');
+    b.textContent = o.label;
+    b.addEventListener('click', ()=>{ actionsFilter = o.k; renderActionsFilterbar(); renderActions(); });
+    actionsFilterbar.appendChild(b);
+  });
+}
+
+function renderActions(){
+  actionTable.innerHTML='';
+  const list = actions.filter(a=> actionsFilter==='all' || a.status===actionsFilter);
+  if(!list.length){
+    actionTable.innerHTML = '<div class="card" style="text-align:center;color:var(--ink-faint);font-size:13px;">No actions in this status.</div>';
+    return;
+  }
+  list.forEach(a=>{
+    const row = document.createElement('div');
+    row.className='action-row';
+    const sevCls = a.sev==='Critical'||a.sev==='High' ? 'high' : a.sev==='Medium' ? 'med' : 'lowsev';
+    row.innerHTML = `
+      <div class="action-main">
+        <h4>${a.title}</h4>
+        <div class="meta"><span class="chip ${sevCls}"><span class="dot"></span>${a.sev}</span><span>${a.desc}</span></div>
+      </div>
+      <div class="meta mono" style="font-size:11.5px;">${a.ref||''}</div>
+      <select class="status-select st-${a.status}" data-id="${a.id}">
+        ${ACTION_STATUSES.map(s=>`<option value="${s.k}" ${a.status===s.k?'selected':''}>${s.label}</option>`).join('')}
+      </select>
+      <div class="action-btns">
+        <button class="icon-btn" title="Edit" data-edit="${a.id}">&#9998;</button>
+        <button class="icon-btn danger" title="Delete" data-del="${a.id}">&#128465;</button>
+      </div>`;
+    row.querySelector('.status-select').addEventListener('change', (e)=>{
+      const item = actions.find(x=>x.id===a.id);
+      item.status = e.target.value;
+      saveActions(actions);
+      renderActionsFilterbar();
+      renderActions();
+    });
+    row.querySelector('[data-edit]').addEventListener('click', ()=> openActionForm(a));
+    row.querySelector('[data-del]').addEventListener('click', ()=>{
+      actions = actions.filter(x=>x.id!==a.id);
+      saveActions(actions);
+      renderActionsFilterbar();
+      renderActions();
+    });
+    actionTable.appendChild(row);
+  });
+}
+
+function openActionForm(existing){
+  const isEdit = !!existing;
+  openModal(`<h3>${isEdit ? 'Edit Action' : 'New Security Action'}</h3>
+    <div class="edit-form">
+      <div><label>Title</label><input id="af-title" value="${existing? existing.title.replace(/"/g,'&quot;') : ''}" placeholder="e.g. Upgrade Pillow to 12.3.0" /></div>
+      <div><label>Description</label><textarea id="af-desc">${existing? existing.desc : ''}</textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div><label>Severity</label><select id="af-sev">${SEVERITY_OPTS.map(s=>`<option ${existing&&existing.sev===s?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div><label>Status</label><select id="af-status">${ACTION_STATUSES.map(s=>`<option value="${s.k}" ${existing&&existing.status===s.k?'selected':''}>${s.label}</option>`).join('')}</select></div>
+      </div>
+      <div><label>Reference (CVE / file / doc)</label><input id="af-ref" value="${existing? (existing.ref||'') : ''}" placeholder="e.g. CVE-2025-XXXX or file path" /></div>
+      <div class="edit-form-actions">
+        <button class="btn-secondary" id="af-cancel">Cancel</button>
+        <button class="btn-primary" id="af-save">${isEdit?'Save Changes':'Add Action'}</button>
+      </div>
+    </div>`);
+  document.getElementById('af-cancel').addEventListener('click', closeModal);
+  document.getElementById('af-save').addEventListener('click', ()=>{
+    const title = document.getElementById('af-title').value.trim();
+    if(!title) return;
+    const data = {
+      title,
+      desc: document.getElementById('af-desc').value.trim(),
+      sev: document.getElementById('af-sev').value,
+      status: document.getElementById('af-status').value,
+      ref: document.getElementById('af-ref').value.trim(),
+    };
+    if(isEdit){
+      Object.assign(existing, data);
+    } else {
+      actions.unshift({ id:'a-'+Date.now(), ...data });
+    }
+    saveActions(actions);
+    renderActionsFilterbar();
+    renderActions();
+    closeModal();
+  });
+}
+document.getElementById('addActionBtn').addEventListener('click', ()=> openActionForm(null));
+renderActionsFilterbar();
+renderActions();
+
+/* ---------------- Composite Security Score ----------------
+   Computed live from this run's real data arrays — never hand-typed.
+   Four weighted components, each 0-100 where higher = healthier:
+     depHealth        30%  — dependency CVE severity mix (packages[])
+     findingsHealth   25%  — open/unresolved items on the Security Actions board (actions[])
+     owaspScore       25%  — OWASP Top 10 exposure score (owasp[], computed above)
+     complianceScore  20%  — Compliance Posture score (compliance[], computed above)
+*/
+const SCORE_WEIGHTS = { dep:0.30, findings:0.25, owasp:0.25, compliance:0.20 };
+const DEP_SEV_PENALTY = { high:10, med:5, lowsev:0 };
+const depPenalty = packages.reduce((sum,p)=> sum + (p.vuln ? (DEP_SEV_PENALTY[p.sev]||0) : 0), 0);
+const depHealth = Math.max(0, 100 - depPenalty);
+
+const FINDING_SEV_PENALTY = { Critical:12, High:6, Medium:3, Low:1 };
+const openFindings = actions.filter(a=> a.status!=='resolved' && a.status!=='closed');
+const findingsPenalty = openFindings.reduce((sum,a)=> sum + (FINDING_SEV_PENALTY[a.sev]||0), 0);
+const findingsHealth = Math.max(0, 100 - findingsPenalty);
+
+const securityScore = Math.round(
+  depHealth*SCORE_WEIGHTS.dep +
+  findingsHealth*SCORE_WEIGHTS.findings +
+  owaspScore*SCORE_WEIGHTS.owasp +
+  overallCompliance*SCORE_WEIGHTS.compliance
+);
+const heroScoreEl = document.getElementById('heroSecurityScore');
+heroScoreEl.textContent = securityScore + '/100';
+heroScoreEl.style.color = securityScore>=70 ? '#BFE8CE' : securityScore>=45 ? '#FFE9B0' : '#F6C2C2';
+function riskColor(score){ return score>=70?'var(--strong)':score>=45?'var(--low)':'var(--none)'; }
+const dashSecurityScoreEl = document.getElementById('dashSecurityScore');
+dashSecurityScoreEl.innerHTML = securityScore + '<span class="sub">/100</span>';
+dashSecurityScoreEl.style.color = riskColor(securityScore);
+document.getElementById('dashVulnCount').textContent = vulnPackageCount;
+document.getElementById('dashDepCount').textContent = packages.length;
+const highVulnCount = packages.filter(p=>p.vuln && p.sev==='high').length;
+const medVulnCount = packages.filter(p=>p.vuln && p.sev==='med').length;
+document.getElementById('dashSevBreakdown').textContent = `${highVulnCount} High · ${medVulnCount} Medium severity`;
+const dashOwaspEl = document.getElementById('dashOwaspScore');
+dashOwaspEl.innerHTML = owaspScore + '<span class="sub">/100</span>';
+dashOwaspEl.style.color = riskColor(owaspScore);
+const dashComplianceEl = document.getElementById('dashComplianceScore');
+dashComplianceEl.innerHTML = overallCompliance + '<span class="sub">/100</span>';
+dashComplianceEl.style.color = riskColor(overallCompliance);
+/* ---------------- Methodology table ----------------
+   Per the "no fabricated scores" rule, this table only ever shows what
+   actually ran in a real /security-audit pass. Populate it from that
+   run's output — never hand-type a "ran/pass" status here without a
+   real tool/command behind it. */
+const methodology = [
+  {module:"Auth", technique:"Manual code review", tool:"Read/Grep on src/features/auth/", scope:"Login flow, session handling (delegated to Supabase Auth)", status:"Ran"},
+  {module:"Database Access Control (RLS)", technique:"Manual policy review + grep for USING(true)/is_admin()/trigger definitions", tool:"Grep on supabase_schema.sql", scope:"All 13 tables, all CREATE POLICY statements, prevent_self_privilege_escalation trigger", status:"Ran"},
+  {module:"API Security / IDOR", technique:"Manual code review of the one server route", tool:"Read on app/api/ai/reframe-email/route.ts", scope:"Session verification, input validation, rate limiting", status:"Ran"},
+  {module:"SQL Injection", technique:"Grep for string-concatenated/dynamic SQL", tool:"Grep across src/, app/, supabase_schema.sql", scope:"Whole app + all RPC bodies", status:"Ran"},
+  {module:"Rate Limiting / Abuse", technique:"Grep for limiter packages/middleware", tool:"Grep for rate-limit/slowapi-equivalent packages", scope:"Whole app, including the AI route", status:"Ran"},
+  {module:"Secrets/Config", technique:"Grep for hardcoded credentials, .gitignore check, Service Role key check", tool:"Grep across src/, app/, next.config.ts, .gitignore", scope:"Whole repo", status:"Ran"},
+  {module:"Frontend / XSS", technique:"Grep for dangerouslySetInnerHTML, eval, target=_blank, javascript: URI handling", tool:"Grep + manual review of password-vault-module.tsx, app/layout.tsx", scope:"Whole app", status:"Ran"},
+  {module:"HTTP Security Headers", technique:"Manual review of next.config.ts headers() hook", tool:"Read + Grep on next.config.ts", scope:"Global headers() hook", status:"Ran"},
+  {module:"Cryptography", technique:"Manual review of KDF/cipher/iteration count", tool:"Read + Grep on src/shared/lib/vault-crypto.ts", scope:"Vault encryption module", status:"Ran"},
+  {module:"Static Analysis", technique:"Project ESLint config", tool:"npm run lint", scope:"Whole app (src/, app/)", status:"Ran"},
+  {module:"Static Analysis (cross-language)", technique:"Semgrep auto ruleset (210 rules)", tool:"semgrep --config=auto src/ app/", scope:"38 tracked files in src/ and app/", status:"Ran"},
+  {module:"Dependency Audit", technique:"npm's own advisory database", tool:"npm audit --json", scope:"All dependencies (dependencies + devDependencies)", status:"Ran"},
+  {module:"Dependency Audit — staleness", technique:"Version-drift check against latest published releases", tool:"npm outdated", scope:"All dependencies", status:"Ran"},
+  {module:"Dependency Audit — cross-ecosystem", technique:"OSV database sweep", tool:"osv-scanner --recursive .", scope:"npm lockfile — not installed", status:"Skipped"},
+  {module:"Dependency Audit — Snyk", technique:"Snyk's advisory database", tool:"snyk test --all-projects", scope:"All dependencies — not authenticated (snyk auth not run)", status:"Skipped"},
+  {module:"Compliance Check", technique:"Cross-referenced ISO 27001/DPDP/CERT-In/IT Act 2000 control claims against modules 1-11 evidence", tool:"Grep for audit_log/consent/retention + manual review", scope:"Whole repo + supabase_schema.sql", status:"Ran"},
+];
+const methodologyTable = document.getElementById('methodologyTable');
+function renderMethodology(){
+  methodologyTable.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'meth-row meth-head';
+  head.innerHTML = `<div>Module</div><div>Technique</div><div>Tool / Command</div><div>Scope</div><div>Status</div>`;
+  methodologyTable.appendChild(head);
+  if(!methodology.length){
+    const empty = document.createElement('div');
+    empty.className = 'meth-row';
+    empty.innerHTML = `<div style="grid-column:1/-1;color:var(--ink-faint);">No audit run has populated this table yet — run <span class="mono">/security-audit</span> to fill it in with this codebase's real tool output. An empty table here is honest; a table of guessed "pass" rows would violate the no-fabrication rule above.</div>`;
+    methodologyTable.appendChild(empty);
+    return;
+  }
+  methodology.forEach(m=>{
+    const row = document.createElement('div');
+    row.className = 'meth-row';
+    const cls = m.status==='Ran' ? 'strong' : m.status==='Skipped' ? 'low' : 'med';
+    row.innerHTML = `<div class="meth-mod">${m.module}</div><div>${m.technique}</div><div class="meth-cmd">${m.tool}</div><div class="meth-scope">${m.scope}</div><div><span class="chip ${cls}"><span class="dot"></span>${m.status}</span></div>`;
+    methodologyTable.appendChild(row);
+  });
+}
+renderMethodology();
+
+document.getElementById('scoreFormulaNote').innerHTML =
+  `<b>Security Score = ${securityScore}/100</b> — recomputed from this run's live data, not hardcoded.<br/>` +
+  `= (Dependency health <b>${depHealth}</b> × 30%) + (Open-findings health <b>${findingsHealth}</b> × 25%) + (OWASP exposure <b>${owaspScore}</b> × 25%) + (Compliance <b>${overallCompliance}</b> × 20%)<br/>` +
+  `<span style="opacity:.8;">Dependency health = 100 − Σ(10 per vulnerable High-severity package, 5 per Medium) from the ${packages.length}-package audit (${vulnPackageCount} vulnerable). ` +
+  `Open-findings health = 100 − Σ(12 Critical / 6 High / 3 Medium / 1 Low) across the ${openFindings.length} unresolved items on the Security Actions board. ` +
+  `OWASP and Compliance scores are the same ones shown in their own sections above. All four inputs update this number automatically if the underlying arrays change.</span>`;
+</script>
+</body>
+</html>

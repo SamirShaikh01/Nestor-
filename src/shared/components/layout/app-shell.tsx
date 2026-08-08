@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BarChart3, CalendarRange, LayoutGrid, Settings2, Workflow, Ticket, ShieldCheck, KeyRound, Users, LogOut } from "lucide-react";
+import { BarChart3, CalendarRange, LayoutGrid, Settings2, Workflow, Ticket, ShieldCheck, KeyRound, Users, LogOut, Sparkles } from "lucide-react";
 import { ReactNode, useState, useEffect } from "react";
 import { useNestor } from "@/src/shared/context/nestor-context";
 import { supabase, isSupabaseConfigured } from "@/src/shared/lib/supabase";
@@ -14,6 +14,7 @@ const navigation = [
   { id: "shift-roster", label: "Shift Roster", icon: CalendarRange },
   { id: "password-vault", label: "Password Vault", icon: KeyRound },
   { id: "tasks", label: "Task Log", icon: Workflow },
+  { id: "email-reframer", label: "Email Reframer", icon: Sparkles },
   { id: "reports", label: "Reports", icon: BarChart3 },
   { id: "calendar", label: "Calendar", icon: CalendarRange },
   { id: "user-management", label: "User Management", icon: Users },

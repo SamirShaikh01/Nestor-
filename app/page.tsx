@@ -12,6 +12,7 @@ import { CalendarModule } from "@/src/features/calendar/components/calendar-modu
 import { SettingsPage } from "@/src/features/settings/components/settings-page";
 import { ReportsModule } from "@/src/features/reports/components/reports-module";
 import { UserManagementModule } from "@/src/features/user-management/components/user-management-module";
+import { EmailReframerModule } from "@/src/features/email-reframer/components/email-reframer-module";
 import { LoginPage } from "@/src/features/auth/components/login-page";
 import { AppShell, type ViewId } from "@/src/shared/components/layout/app-shell";
 import { useNestor } from "@/src/shared/context/nestor-context";
@@ -181,6 +182,7 @@ export default function HomePage() {
       {activeView === "user-management" ? <UserManagementModule /> : null}
       {activeView === "settings" ? <SettingsPage /> : null}
       {activeView === "reports" ? <ReportsModule /> : null}
+      {activeView === "email-reframer" ? <EmailReframerModule /> : null}
     </AppShell>
   );
 }

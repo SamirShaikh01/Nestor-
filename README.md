@@ -41,6 +41,12 @@ Nestor is a premium, high-performance internal operations and workforce manageme
    \`\`\`
 5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Security Auditing
+
+[SECURITY_DASHBOARD.html](./SECURITY_DASHBOARD.html) is a self-contained, browser-viewable security report — dependency CVEs, RLS/OWASP Top 10 posture, compliance eligibility (ISO 27001 / DPDP Act / CERT-In / IT Act 2000), and a per-module methodology/audit-trail table. Open the file directly in any browser; no build step required.
+
+Regenerate it by running the `/security-audit` slash command ([.claude/commands/security-audit.md](./.claude/commands/security-audit.md)) — it re-scans the current codebase (`npm audit`, `npm outdated`, `semgrep --config=auto`, plus manual review of auth/RLS/crypto/headers) and rewrites the dashboard's data with fresh, sourced findings. Every score on the page must trace to a specific tool run or `file:line` citation, or be marked "Not yet verified" — see the dashboard's own Methodology & Data Integrity section for the full rule set.
+
 ## Documentation Index
 
 The authoritative engineering reference for this project is [docs/brain.md](./docs/brain.md) —

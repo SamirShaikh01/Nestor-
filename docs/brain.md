@@ -598,6 +598,11 @@ Full detail in [../DESIGN.md](../DESIGN.md) and `src/shared/styles/tokens.css` �
 # 17. Future Roadmap
 
 Full detail, priority order, and reasoning in [roadmap.md](roadmap.md). Summary:
+- **v2 planning**: see [v2-feasibility.md](v2-feasibility.md) for the 2026-08-09 feasibility
+  analysis of VirusTotal, an AI-powered "email reframer," Helpdesk360, and the broader AI Layer
+  (VISION.md) — all four require introducing this app's first server-side code (Next.js API
+  routes) to hold API keys safely; VirusTotal additionally has a real ToS blocker on its free tier
+  for business use, and Helpdesk360 is blocked pending API/network-reachability details.
 - **Immediate**: verification of already-shipped work (schema re-run, manual test checklist,
   Password Vault + Reports interactive testing) — no new code.
 - **Short term**: wire `shift_presets`/roster/calendar data to the unexplained-but-present

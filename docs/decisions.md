@@ -521,3 +521,40 @@ design — ADR-008). Apologies for the extra round-trip; it's now been verified 
 re-running the app's exact failing queries against the live project directly (same throwaway
 script/account pattern used throughout this audit), confirming the recursion error is specifically
 what was thrown before this fix.
+
+
+---
+
+## ADR-025 — First v2 feature (Email Reframer) introduces this app's first server-side code
+
+**Date**: 2026-08-09
+**Decision**: Built the Email Reframer (docs/v2-feasibility.md §2a) as a Next.js API route
+(`app/api/ai/reframe-email`) calling Google's Gemini API server-side, rather than any client-side
+approach. Chose **Gemini 2.5 Flash-Lite on its free tier** over Claude/OpenAI for this specific
+feature, after discussing tradeoffs with the user: Gemini has a genuine permanent free tier (15
+req/min, 1,000/day, no card required) suitable for an internal team's occasional use; Claude/OpenAI
+only offer one-time trial credits, not an ongoing free option. The user explicitly accepted the
+tradeoff that Gemini's free tier allows input data to be used by Google to improve their models
+(the paid tier turns this off) — acceptable here since no email content is persisted and this
+feature is opt-in per use, not applied to sensitive data automatically.
+**Reason**: No third-party API with a secret key can be called safely from browser code — the key
+would ship to every visitor's bundle. This is the first time that constraint applies to this app
+(previous privileged operations all went through Supabase RLS + `SECURITY DEFINER` RPCs, never an
+external API), so it's the first time server-side code was actually necessary.
+**Alternatives rejected**: Calling Gemini directly from the browser (exposes the API key to
+anyone, defeats rate-limit/cost protection); a rule-based/template rewriter instead of a real LLM
+(quality far below what "reframe my email" implies); Supabase Edge Functions instead of Next.js API
+routes (viable, but adds a second deployment pipeline/runtime for no benefit since the app already
+deploys to Vercel, which runs Next.js API routes natively).
+**Explicit product decision — no logging**: per the user's direct instruction, this feature is
+fully stateless. No draft text or reframed output is written to Supabase or any log the app
+controls. The only persistence is whatever Gemini's own API does on Google's side for standard
+abuse-monitoring, which is out of this app's control regardless of provider.
+**Impact**: `app/api/ai/reframe-email/route.ts` (new), `src/features/email-reframer/` (new
+module), `app-shell.tsx`/`app/page.tsx` (new nav entry + view routing). Requires a new
+`GEMINI_API_KEY` server environment variable (see `docs/setup.md`) — **not** `NEXT_PUBLIC_*`, the
+first non-public env var this app has ever needed. The route independently verifies the caller's
+Supabase session (via the bearer token) before calling Gemini, so the (real, per-request-cost)
+endpoint isn't reachable by anyone who isn't a signed-in Nestor user. **Action needed from you**:
+add `GEMINI_API_KEY` to Vercel's environment variables (and `.env.local` for local dev) — get a
+free key from https://aistudio.google.com/apikey.
