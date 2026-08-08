@@ -330,8 +330,8 @@ export function SettingsPage() {
     e.preventDefault();
     setPasswordMsg(null);
     if (!user?.email || !supabase) return;
-    if (newLoginPw.length < 6) {
-      setPasswordMsg({ type: "error", text: "New password must be at least 6 characters." });
+    if (newLoginPw.length < 8) {
+      setPasswordMsg({ type: "error", text: "New password must be at least 8 characters." });
       return;
     }
     if (newLoginPw !== confirmLoginPw) {
@@ -599,7 +599,7 @@ export function SettingsPage() {
                         <input
                           type={showLoginPw ? "text" : "password"}
                           required
-                          minLength={6}
+                          minLength={8}
                           placeholder="New password"
                           value={newLoginPw}
                           onChange={(e) => setNewLoginPw(e.target.value)}
@@ -616,7 +616,7 @@ export function SettingsPage() {
                       <input
                         type={showLoginPw ? "text" : "password"}
                         required
-                        minLength={6}
+                        minLength={8}
                         placeholder="Confirm new password"
                         value={confirmLoginPw}
                         onChange={(e) => setConfirmLoginPw(e.target.value)}

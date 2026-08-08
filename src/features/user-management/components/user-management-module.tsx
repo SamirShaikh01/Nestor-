@@ -555,7 +555,7 @@ export function UserManagementModule() {
                   <input
                     type="password"
                     required
-                    minLength={6}
+                    minLength={8}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className={inputCls}
@@ -672,7 +672,7 @@ export function UserManagementModule() {
                   <input
                     type="password"
                     required
-                    minLength={6}
+                    minLength={8}
                     value={recoveryPassword}
                     onChange={(e) => setRecoveryPassword(e.target.value)}
                     placeholder="Enter new recovery password"

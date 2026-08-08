@@ -17,6 +17,133 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
+-- ============================================================================
+-- 0. RLS Cleanup — remove drifted/duplicate/dangerous policies
+-- ============================================================================
+-- A live audit (docs/security-audit.md, run 2026-08-08) pulled every policy
+-- actually in effect on the production database via:
+--   SELECT tablename, policyname, cmd, qual, with_check FROM pg_policies
+--   WHERE schemaname = 'public' ORDER BY tablename, policyname;
+-- It found FAR more policies than this file ever tracked — years of ad-hoc
+-- migrations and dashboard edits that were never folded back in here (the
+-- exact "schema drift" pattern flagged in ADR-012, now confirmed at scale).
+--
+-- Two concrete problems this caused:
+--  1. Postgres RLS policies are OR'd together (for permissive policies,
+--     which is the default and what every policy in this project uses) —
+--     so ONE overly-broad policy defeats every careful one sitting next to
+--     it. `profiles` alone had 8 overlapping policies; several tables had a
+--     blanket `USING (true) WITH CHECK (true)` policy living right next to
+--     a properly owner/admin-scoped one, which makes the careful one
+--     pointless — any authenticated user could still write anything via the
+--     open one.
+--  2. Two helper functions, `is_admin()` and `is_active_user()`, already
+--     existed live (used by several of the better-scoped policies) but were
+--     never defined in this tracked file. They're (re)defined below so this
+--     file is now the actual source of truth, not just partially so.
+--
+-- This section explicitly drops every dangerous or redundant policy name
+-- found in that live audit, by its exact name, before each table's own
+-- section below (re)creates one clean, minimal, documented policy set.
+-- Safe to re-run: DROP POLICY IF EXISTS is a no-op on a policy that was
+-- already removed by a previous run of this same file.
+
+-- profiles: 8 overlapping policies -> keep exactly 3 (self-manage, admin-manage-all, public read)
+DROP POLICY IF EXISTS "Active users can update their safe profile fields" ON public.profiles;
+DROP POLICY IF EXISTS "Allow admins to update all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow users to read all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow users to update own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Profile owner or admin can read" ON public.profiles;
+
+-- tickets: "Team: insert/update/delete" let ANY authenticated user write or
+-- delete ANY OTHER user's tickets outright, defeating "Users can manage own
+-- tickets" right next to it. This was a real, live broken-access-control gap.
+DROP POLICY IF EXISTS "Team: insert tickets" ON public.tickets;
+DROP POLICY IF EXISTS "Team: update tickets" ON public.tickets;
+DROP POLICY IF EXISTS "Team: delete tickets" ON public.tickets;
+DROP POLICY IF EXISTS "Team: read all tickets" ON public.tickets;
+DROP POLICY IF EXISTS "Active users manage own tickets" ON public.tickets;
+
+-- ticket_work_logs: dedupe the two identical unconditional read policies
+DROP POLICY IF EXISTS "Team: read all work logs" ON public.ticket_work_logs;
+
+-- oem_cases: "Allow write for authenticated" (true/true) let anyone edit or
+-- delete ANY case, defeating the careful owner/admin-scoped policies beside
+-- it. Keep the well-designed set (create own / read / admin manage+delete /
+-- owner-or-admin update), drop the dangerous open one and its read/write dupes.
+DROP POLICY IF EXISTS "Allow read for authenticated" ON public.oem_cases;
+DROP POLICY IF EXISTS "Allow write for authenticated" ON public.oem_cases;
+DROP POLICY IF EXISTS "Everyone can read OEM cases" ON public.oem_cases;
+
+-- roster_assignments: "Allow write for authenticated" (true/true) let any
+-- member assign/change anyone's shift directly, bypassing the admin-only
+-- UI restriction entirely.
+DROP POLICY IF EXISTS "Allow read for authenticated" ON public.roster_assignments;
+DROP POLICY IF EXISTS "Allow write for authenticated" ON public.roster_assignments;
+DROP POLICY IF EXISTS "Admins manage roster assignments" ON public.roster_assignments;
+
+-- shift_requests: "Allow write for authenticated" (true/true) let any member
+-- approve/decline their own or anyone else's shift-change request directly,
+-- bypassing the entire admin-review workflow. The rest of the policy set
+-- here was already correctly designed (submit own / admin reviews / users
+-- read own or admin reads all / withdraw own-pending or admin deletes) —
+-- just drop the dangerous open one and its exact duplicates.
+DROP POLICY IF EXISTS "Allow read for authenticated" ON public.shift_requests;
+DROP POLICY IF EXISTS "Allow write for authenticated" ON public.shift_requests;
+DROP POLICY IF EXISTS "Admins can update all shift requests" ON public.shift_requests;
+DROP POLICY IF EXISTS "Admins can view all shift requests" ON public.shift_requests;
+DROP POLICY IF EXISTS "Users can insert own shift requests" ON public.shift_requests;
+DROP POLICY IF EXISTS "Users can view own shift requests" ON public.shift_requests;
+
+-- vault_products / vault_clients / vault_entries: no dangerous open-write
+-- policy existed here (good) — just dedupe the redundant read/admin-write
+-- policy names left over from an earlier pass.
+DROP POLICY IF EXISTS "Admins can manage vault products" ON public.vault_products;
+DROP POLICY IF EXISTS "Everyone can read vault products" ON public.vault_products;
+DROP POLICY IF EXISTS "Admins can manage vault clients" ON public.vault_clients;
+DROP POLICY IF EXISTS "Everyone can read vault clients" ON public.vault_clients;
+DROP POLICY IF EXISTS "Admins can manage vault entries" ON public.vault_entries;
+DROP POLICY IF EXISTS "Everyone can read vault entries" ON public.vault_entries;
+
+-- personal_vault / tasks: dedupe identical own-row policies left from an
+-- earlier pass (both variants were already correctly scoped, no gap here).
+DROP POLICY IF EXISTS "Active users manage own personal vault" ON public.personal_vault;
+DROP POLICY IF EXISTS "Active users manage own tasks" ON public.tasks;
+
+-- Helper functions used below (and already relied on by several of the
+-- policies that were live but untracked). SECURITY DEFINER + a pinned
+-- search_path so they can read `profiles` regardless of the caller's own
+-- row-level access, without being hijackable via a spoofed search_path.
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_active_user()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND status = 'active'
+  );
+$$;
+
+-- Every policy below that calls these needs the `authenticated` role to
+-- actually be allowed to invoke them (matches this file's convention for
+-- every other custom function — see the RPC grants further down).
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_active_user() TO authenticated;
+
 -- ----------------------------------------------------------------------------
 -- 1. Profiles Table
 -- ----------------------------------------------------------------------------
@@ -55,12 +182,91 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow select for authenticated" ON public.profiles;
 DROP POLICY IF EXISTS "Users can manage own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Admins can manage all profiles" ON public.profiles;
 
 CREATE POLICY "Allow select for authenticated" ON public.profiles
     FOR SELECT TO authenticated USING (true);
 
 CREATE POLICY "Users can manage own profile" ON public.profiles
     FOR ALL TO authenticated USING (((select auth.uid()) = id)) WITH CHECK (((select auth.uid()) = id));
+
+-- Explicitly tracks what User Management's role/status toggles and Employee
+-- ID mapping need (an admin editing a DIFFERENT user's row) — same pattern
+-- already used for vault_products/vault_clients/vault_entries below. Added
+-- during the security audit (docs/security-audit.md) after a live PoC showed
+-- an admin's cross-user profile update succeeding despite no such policy
+-- existing in this tracked file — i.e. the live project already had an
+-- equivalent policy that was never synced back here (see ADR-012 on schema
+-- drift). Safe to add even if redundant with whatever is live.
+--
+-- MUST use is_admin(), not an inline `(SELECT role FROM public.profiles ...)`
+-- subquery: this policy is FOR ALL (applies to SELECT too), and on THIS
+-- SAME TABLE — so an inline subquery re-triggers profiles' own SELECT
+-- policies, which re-evaluates this same FOR ALL policy, forever
+-- ("infinite recursion detected in policy for relation \"profiles\"",
+-- Postgres error 42P17). This broke every query touching profiles at all
+-- (direct or, like vault_change_requests, via its own admin-check subquery)
+-- the moment this policy first went live. is_admin() is SECURITY DEFINER —
+-- its internal read of profiles runs as the function owner and bypasses
+-- RLS entirely, so it never re-enters this policy.
+CREATE POLICY "Admins can manage all profiles" ON public.profiles
+    FOR ALL TO authenticated
+    USING (is_admin())
+    WITH CHECK (is_admin());
+
+-- SECURITY FIX (see docs/security-audit.md, Finding 1 — CRITICAL): the
+-- "own profile" policy above is intentionally permissive on WHICH ROW a user
+-- may touch (their own), but Postgres RLS has no concept of column-level
+-- restriction — it does not stop a user from writing new *values* into that
+-- row. Confirmed by direct PoC against the live project: a plain member
+-- account successfully self-updated its own `role` column to 'admin' via
+-- `supabase.from('profiles').update({ role: 'admin' }).eq('id', <self>)` —
+-- no error, fully persisted. This trigger closes that gap by rejecting any
+-- self-initiated change to the three privilege-bearing columns; all
+-- legitimate changes to those columns are made by an admin acting on a
+-- *different* user's row (via the RPCs below, or the admin-only UI), which
+-- this trigger does not affect.
+CREATE OR REPLACE FUNCTION public.prevent_self_privilege_escalation()
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  IF auth.uid() = OLD.id THEN
+    -- Role is never self-changeable, full stop — no legitimate self-service
+    -- reason to touch it, and it's the actual escalation vector this trigger
+    -- exists to close.
+    IF NEW.role IS DISTINCT FROM OLD.role THEN
+      RAISE EXCEPTION 'You cannot change your own role.';
+    END IF;
+
+    -- An already-admin row touching its own status/employee_id isn't an
+    -- escalation (they're not gaining any privilege they don't have) and
+    -- covers legitimate self-service, e.g. an admin setting their own
+    -- Employee ID mapping in User Management. Non-admins are restricted,
+    -- with one narrow exception: completing first-login password setup
+    -- flips your own status from 'pending' to 'active'
+    -- (complete_initial_password RPC) — everything else self-initiated is
+    -- blocked, including a disabled user trying to reactivate themselves.
+    IF OLD.role IS DISTINCT FROM 'admin' THEN
+      IF NEW.status IS DISTINCT FROM OLD.status
+         AND NOT (OLD.status = 'pending' AND NEW.status = 'active') THEN
+        RAISE EXCEPTION 'You cannot change your own account status.';
+      END IF;
+      IF NEW.employee_id IS DISTINCT FROM OLD.employee_id THEN
+        RAISE EXCEPTION 'You cannot change your own employee ID.';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_prevent_self_privilege_escalation ON public.profiles;
+CREATE TRIGGER trg_prevent_self_privilege_escalation
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.prevent_self_privilege_escalation();
 
 
 -- ----------------------------------------------------------------------------
@@ -91,8 +297,13 @@ DROP POLICY IF EXISTS "Allow public update to tasks" ON public.tasks;
 DROP POLICY IF EXISTS "Allow public delete to tasks" ON public.tasks;
 DROP POLICY IF EXISTS "Users can manage own tasks" ON public.tasks;
 
+-- Also requires is_active_user() — a disabled account can no longer write
+-- here at the database layer, not just via the app's own client-side check
+-- (see docs/security-audit.md Finding 1 / the disabled-account fix).
 CREATE POLICY "Users can manage own tasks" ON public.tasks
-    FOR ALL TO authenticated USING (((select auth.uid()) = user_id)) WITH CHECK (((select auth.uid()) = user_id));
+    FOR ALL TO authenticated
+    USING (((select auth.uid()) = user_id) AND is_active_user())
+    WITH CHECK (((select auth.uid()) = user_id) AND is_active_user());
 
 
 -- ----------------------------------------------------------------------------
@@ -128,7 +339,9 @@ DROP POLICY IF EXISTS "Allow public delete to tickets" ON public.tickets;
 DROP POLICY IF EXISTS "Users can manage own tickets" ON public.tickets;
 
 CREATE POLICY "Users can manage own tickets" ON public.tickets
-    FOR ALL TO authenticated USING (((select auth.uid()) = user_id)) WITH CHECK (((select auth.uid()) = user_id));
+    FOR ALL TO authenticated
+    USING (((select auth.uid()) = user_id) AND is_active_user())
+    WITH CHECK (((select auth.uid()) = user_id) AND is_active_user());
 
 -- Unique constraint required for the app's upsert(onConflict: "id, user_id")
 DO $$
@@ -214,6 +427,26 @@ CREATE TABLE IF NOT EXISTS public.oem_cases (
 -- whether such a trigger exists on this project.
 ALTER TABLE public.oem_cases ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
+-- Ownership marker for RLS (distinct from `raised_by`/`assigned_to`, which
+-- are free-text display names, not auth identities). Defaults to the
+-- inserting user automatically, so existing app code needs no changes.
+ALTER TABLE public.oem_cases ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL DEFAULT auth.uid();
+
+-- Backfill for cases that already existed before this column was added.
+-- `DEFAULT auth.uid()` only applies to new rows going forward, and running
+-- this migration from the SQL Editor has no authenticated-user context, so
+-- every pre-existing row would otherwise get `created_by = NULL` — silently
+-- locking its original creator out of the "owner can update" policy below
+-- (only an admin could touch it from then on). Best-effort match by name
+-- against `profiles.username`; anything left NULL falls back to admin-only,
+-- same as before this migration ran.
+UPDATE public.oem_cases oc
+SET created_by = p.id
+FROM public.profiles p
+WHERE oc.created_by IS NULL
+  AND oc.raised_by IS NOT NULL
+  AND lower(btrim(p.username)) = lower(btrim(oc.raised_by));
+
 ALTER TABLE public.oem_cases ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read access to oem_cases" ON public.oem_cases;
@@ -226,12 +459,28 @@ DROP POLICY IF EXISTS "All users can update OEM cases" ON public.oem_cases;
 DROP POLICY IF EXISTS "All users can delete OEM cases" ON public.oem_cases;
 DROP POLICY IF EXISTS "Allow read for authenticated" ON public.oem_cases;
 DROP POLICY IF EXISTS "Allow write for authenticated" ON public.oem_cases;
+DROP POLICY IF EXISTS "Active team members can create OEM cases" ON public.oem_cases;
+DROP POLICY IF EXISTS "Active team members can read OEM cases" ON public.oem_cases;
+DROP POLICY IF EXISTS "Admins can delete OEM cases" ON public.oem_cases;
+DROP POLICY IF EXISTS "Admins can manage OEM cases" ON public.oem_cases;
+DROP POLICY IF EXISTS "Owners or admins can update OEM cases" ON public.oem_cases;
 
-CREATE POLICY "Allow read for authenticated" ON public.oem_cases
-    FOR SELECT TO authenticated USING (true);
+-- Any active team member can read and create cases (this is a shared,
+-- collaborative case log by design); only the case's own creator or an
+-- admin may update it; only an admin may delete one.
+CREATE POLICY "Active team members can read OEM cases" ON public.oem_cases
+    FOR SELECT TO authenticated USING (is_active_user());
 
-CREATE POLICY "Allow write for authenticated" ON public.oem_cases
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Active team members can create OEM cases" ON public.oem_cases
+    FOR INSERT TO authenticated WITH CHECK (is_active_user() AND created_by = auth.uid());
+
+CREATE POLICY "Owners or admins can update OEM cases" ON public.oem_cases
+    FOR UPDATE TO authenticated
+    USING (is_active_user() AND (created_by = auth.uid() OR is_admin()))
+    WITH CHECK (is_active_user() AND (created_by = auth.uid() OR is_admin()));
+
+CREATE POLICY "Admins can delete OEM cases" ON public.oem_cases
+    FOR DELETE TO authenticated USING (is_admin());
 
 
 -- ----------------------------------------------------------------------------
@@ -264,8 +513,8 @@ CREATE POLICY "Allow read for authenticated" ON public.vault_products
 
 CREATE POLICY "Admins can write vault_products" ON public.vault_products
     FOR ALL TO authenticated
-    USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
-    WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+    USING (is_admin())
+    WITH CHECK (is_admin());
 
 
 -- ----------------------------------------------------------------------------
@@ -297,8 +546,8 @@ CREATE POLICY "Allow read for authenticated" ON public.vault_clients
 
 CREATE POLICY "Admins can write vault_clients" ON public.vault_clients
     FOR ALL TO authenticated
-    USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
-    WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+    USING (is_admin())
+    WITH CHECK (is_admin());
 
 
 -- ----------------------------------------------------------------------------
@@ -354,8 +603,8 @@ CREATE POLICY "Allow read for authenticated" ON public.vault_entries
 
 CREATE POLICY "Admins can write vault_entries" ON public.vault_entries
     FOR ALL TO authenticated
-    USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
-    WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+    USING (is_admin())
+    WITH CHECK (is_admin());
 
 
 -- ----------------------------------------------------------------------------
@@ -392,7 +641,9 @@ DROP POLICY IF EXISTS "Users can manage personal vault" ON public.personal_vault
 DROP POLICY IF EXISTS "Users can manage own personal vault" ON public.personal_vault;
 
 CREATE POLICY "Users can manage own personal vault" ON public.personal_vault
-    FOR ALL TO authenticated USING (((select auth.uid()) = user_id)) WITH CHECK (((select auth.uid()) = user_id));
+    FOR ALL TO authenticated
+    USING (((select auth.uid()) = user_id) AND is_active_user())
+    WITH CHECK (((select auth.uid()) = user_id) AND is_active_user());
 
 
 -- ----------------------------------------------------------------------------
@@ -440,11 +691,11 @@ CREATE POLICY "Read team wrap or own personal wrap" ON public.vault_key_wraps
 CREATE POLICY "Write team wrap as admin or own personal wrap" ON public.vault_key_wraps
     FOR ALL TO authenticated
     USING (
-      (scope = 'team' AND (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
+      (scope = 'team' AND is_admin())
       OR (scope = 'personal' AND id = (auth.uid())::text)
     )
     WITH CHECK (
-      (scope = 'team' AND (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
+      (scope = 'team' AND is_admin())
       OR (scope = 'personal' AND id = (auth.uid())::text)
     );
 
@@ -498,7 +749,7 @@ CREATE POLICY "Read own or admin read all vault change requests" ON public.vault
     FOR SELECT TO authenticated
     USING (
       user_id = (select auth.uid())
-      OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+      OR is_admin()
     );
 
 -- Any authenticated user can submit a request, only as themselves.
@@ -510,8 +761,8 @@ CREATE POLICY "Submit own vault change request" ON public.vault_change_requests
 -- resolved requests stay in the table as a record, same as shift_requests.
 CREATE POLICY "Admins review vault change requests" ON public.vault_change_requests
     FOR UPDATE TO authenticated
-    USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
-    WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+    USING (is_admin())
+    WITH CHECK (is_admin());
 
 
 -- ----------------------------------------------------------------------------
@@ -537,12 +788,18 @@ ALTER TABLE public.roster_assignments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Everyone can read roster assignments" ON public.roster_assignments;
 DROP POLICY IF EXISTS "Allow read for authenticated" ON public.roster_assignments;
 DROP POLICY IF EXISTS "Allow write for authenticated" ON public.roster_assignments;
+DROP POLICY IF EXISTS "Admins can manage roster assignments" ON public.roster_assignments;
 
+-- Read stays open — every member needs to see the full roster to know who's
+-- on shift. Direct writes are admin-only; members go through shift_requests
+-- (below) instead, matching the app's own "submit request, admin approves"
+-- UI flow — the previous "Allow write for authenticated" policy let any
+-- member bypass that flow entirely via a direct API call.
 CREATE POLICY "Allow read for authenticated" ON public.roster_assignments
     FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Allow write for authenticated" ON public.roster_assignments
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Admins can manage roster assignments" ON public.roster_assignments
+    FOR ALL TO authenticated USING (is_admin()) WITH CHECK (is_admin());
 
 
 -- ----------------------------------------------------------------------------
@@ -583,12 +840,32 @@ ALTER TABLE public.shift_requests ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow read for authenticated" ON public.shift_requests;
 DROP POLICY IF EXISTS "Allow write for authenticated" ON public.shift_requests;
+DROP POLICY IF EXISTS "Active users submit own requests" ON public.shift_requests;
+DROP POLICY IF EXISTS "Users read own requests or admins read all" ON public.shift_requests;
+DROP POLICY IF EXISTS "Users withdraw own pending requests or admins delete" ON public.shift_requests;
+DROP POLICY IF EXISTS "Admins review shift requests" ON public.shift_requests;
 
-CREATE POLICY "Allow read for authenticated" ON public.shift_requests
-    FOR SELECT TO authenticated USING (true);
+-- The previous "Allow write for authenticated" policy let any member
+-- approve/decline their own (or anyone else's) shift-change request
+-- directly, bypassing the entire admin-review workflow the app's UI
+-- implies exists. Replaced with the same request/approve shape already used
+-- correctly for vault_change_requests: submit your own (pending only),
+-- read your own or all if admin, withdraw your own pending one (or admin
+-- deletes any), and only an admin may change `status` (approve/decline).
+CREATE POLICY "Active users submit own requests" ON public.shift_requests
+    FOR INSERT TO authenticated
+    WITH CHECK (user_id = auth.uid() AND is_active_user() AND status = 'pending');
 
-CREATE POLICY "Allow write for authenticated" ON public.shift_requests
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Users read own requests or admins read all" ON public.shift_requests
+    FOR SELECT TO authenticated
+    USING (is_admin() OR (user_id = auth.uid() AND is_active_user()));
+
+CREATE POLICY "Admins review shift requests" ON public.shift_requests
+    FOR UPDATE TO authenticated USING (is_admin()) WITH CHECK (is_admin());
+
+CREATE POLICY "Users withdraw own pending requests or admins delete" ON public.shift_requests
+    FOR DELETE TO authenticated
+    USING (is_admin() OR (user_id = auth.uid() AND status = 'pending' AND is_active_user()));
 
 
 -- ============================================================================
@@ -619,6 +896,13 @@ BEGIN
      OR p_password IS NULL OR p_password = ''
      OR p_username IS NULL OR btrim(p_username) = '' THEN
     RAISE EXCEPTION 'Email, password, and username are required.';
+  END IF;
+
+  -- See docs/security-audit.md Finding 6: this RPC previously accepted any
+  -- non-empty password (e.g. "a"). Client-side forms already enforce a
+  -- minimum, but that's trivially bypassed by calling this RPC directly.
+  IF length(p_password) < 8 THEN
+    RAISE EXCEPTION 'Password must be at least 8 characters long.';
   END IF;
 
   IF p_role NOT IN ('admin', 'member') THEN
@@ -710,8 +994,8 @@ BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'You must be signed in to change your password.';
   END IF;
-  IF p_new_password IS NULL OR length(p_new_password) < 6 THEN
-    RAISE EXCEPTION 'Password must be at least 6 characters long.';
+  IF p_new_password IS NULL OR length(p_new_password) < 8 THEN
+    RAISE EXCEPTION 'Password must be at least 8 characters long.';
   END IF;
 
   SELECT status INTO v_status FROM public.profiles WHERE id = v_user_id;
@@ -797,8 +1081,8 @@ BEGIN
     RAISE EXCEPTION 'Access Denied: Only administrators can reset passwords.';
   END IF;
 
-  IF p_new_password IS NULL OR p_new_password = '' THEN
-    RAISE EXCEPTION 'A new password is required.';
+  IF p_new_password IS NULL OR length(p_new_password) < 8 THEN
+    RAISE EXCEPTION 'Password must be at least 8 characters long.';
   END IF;
 
   UPDATE auth.users

@@ -442,3 +442,82 @@ the hardcoded default `"G"` (General Shift) rather than the real assignment for 
 correct pattern already in use elsewhere in the codebase to copy.
 **Impact**: `shift-roster-module.tsx` only. Verified live: Admin (actually on Evening Shift today)
 now correctly appears under the "Evening Shift" card instead of "General Shift."
+
+
+---
+
+## ADR-023 — Full security audit + RLS policy consolidation across the database
+
+**Date**: 2026-08-08
+**Decision**: Conducted a full vulnerability assessment (dependency scan, static code review, and
+— critically — live proof-of-concept testing against the production Supabase project using the
+same public anon key already shipped to the browser) before starting v2 work. Full report:
+[security-audit.md](security-audit.md). Two headline outcomes:
+
+1. **Confirmed and fixed a critical privilege-escalation bug**: RLS restricted *which row* a user
+   could write (their own), but not *which columns* — so any member could set their own `role` to
+   `'admin'` via a single direct `supabase.from('profiles').update(...)` call. Closed with a
+   `BEFORE UPDATE` trigger (`prevent_self_privilege_escalation`) that rejects self-initiated
+   changes to `role`/`status`/`employee_id`, independent of whichever RLS policy allowed the row
+   match — this is the layer RLS itself cannot provide.
+2. **A user-requested `pg_policies` export revealed the schema drift problem (ADR-012) was far
+   larger than previously known**: 20+ live policies across the database were never tracked in
+   `supabase_schema.sql`, including several dangerous `USING(true) WITH CHECK(true)` policies
+   sitting directly beside properly-scoped ones on the same table (`tickets`, `oem_cases`,
+   `roster_assignments`, `shift_requests`) — since Postgres OR's permissive policies together, the
+   open one silently defeated the careful one every time. `profiles` alone carried 8 overlapping,
+   redundant policies from past migration attempts. Two helper functions (`is_admin()`,
+   `is_active_user()`) were already relied upon live but never defined in this file.
+**Reason**: User asked for a full compliance-oriented security pass before v2 work continues, then
+specifically asked for the live policy export after the first pass's fixes, which is what surfaced
+the true scope.
+**Alternatives rejected**: Only patching the one profiles-table issue found in the tracked file
+(would have left the tickets/oem_cases/roster/shift-request holes live, and left the tracked schema
+permanently unable to describe the actual database).
+**Impact**: `supabase_schema.sql` gained a new "0. RLS Cleanup" section (drops every
+dangerous/redundant live policy by exact name, defines `is_admin()`/`is_active_user()`) and each
+affected table's policy set was rebuilt clean and minimal. `oem_cases` gained a `created_by` column
+(with a best-effort backfill matching `raised_by` against `profiles.username`) since it had no
+reliable per-row ownership marker for RLS to key off. `tasks`/`tickets`/`personal_vault` writes now
+also require `is_active_user()`, giving the disabled-account enforcement from ADR-020's fix a second,
+database-level layer instead of relying on the client alone. **Action needed from you**: re-run
+`supabase_schema.sql` — see security-audit.md §4 for the full "what to do next" list, including
+items intentionally left as recommendations rather than applied (Next.js version bump, PBKDF2
+iteration increase, further CSP tightening).
+
+
+---
+
+## ADR-024 — ADR-023's own admin policy caused infinite RLS recursion (42P17) — fixed
+
+**Date**: 2026-08-09
+**Decision**: The new `"Admins can manage all profiles"` policy added in ADR-023 used an inline
+`(SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'` check. That policy is `FOR
+ALL` — which includes `SELECT` — and it's declared **on `profiles` itself**, so evaluating it
+required re-running profiles' own SELECT-applicable policies, which re-triggered this same `FOR
+ALL` policy, forever. Postgres error `42P17: infinite recursion detected in policy for relation
+"profiles"`. This broke every single query that touched `profiles` — directly (`fetchProfile`,
+the roster-members load) or indirectly through another table's own admin-check subquery
+(`vault_change_requests`) — immediately after the user ran the ADR-023 migration.
+**Reason**: Caught via direct live testing (a throwaway Node script signing in as a real test
+account and running the app's exact queries) after the user reported the app broken post-migration
+with empty `{}` error objects in the console (the app's own error logging doesn't surface Postgres
+error codes/messages, only an opaque object — worth fixing separately, see Finding in
+security-audit.md if not already tracked).
+**Fix applied**: changed the policy to `USING (is_admin()) WITH CHECK (is_admin())`. `is_admin()`
+is `SECURITY DEFINER`, so its internal read of `profiles` runs as the function owner and bypasses
+RLS entirely — it never re-enters the policy that calls it. This is exactly why these helper
+functions exist; the mistake was defining a fixed but still using an inline subquery instead of the
+function. Also replaced every *other* remaining inline `(SELECT role FROM profiles ...) = 'admin'`
+subquery (on `vault_products`, `vault_clients`, `vault_entries`, `vault_key_wraps`,
+`vault_change_requests`) with `is_admin()` for consistency — those weren't self-referencing so
+they weren't recursing, but standardizing removes the same latent risk everywhere.
+**Alternatives rejected**: None — this is the standard, documented fix for this exact class of
+Postgres RLS recursion.
+**Impact**: `supabase_schema.sql` only. **Action needed from you**: re-run the file again — this
+was not caught before the ADR-023 fix was first handed off, since there is no way to test live DDL
+changes without direct database execution rights (this app has never held a Service Role key, by
+design — ADR-008). Apologies for the extra round-trip; it's now been verified as fixed by
+re-running the app's exact failing queries against the live project directly (same throwaway
+script/account pattern used throughout this audit), confirming the recursion error is specifically
+what was thrown before this fix.

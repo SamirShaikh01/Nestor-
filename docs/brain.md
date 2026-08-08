@@ -551,6 +551,10 @@ Full detail in [../DESIGN.md](../DESIGN.md) and `src/shared/styles/tokens.css` â
 
 # 16. Current Known Issues
 
+- **See [security-audit.md](security-audit.md)** for the full 2026-08-08 vulnerability assessment â€”
+  one critical privilege-escalation bug (fixed), plus several open medium/low findings (RLS
+  hardening for roster/shift-request tables, a pending Next.js version bump, a planned vault
+  PBKDF2 iteration increase) that should be triaged before v2 work goes further.
 - **No automated test suite.** All verification during development has been `npx tsc --noEmit` +
   manual dev-server smoke checks + (when possible) live interactive testing. See
   [setup.md](setup.md) "Verifying a change actually works."

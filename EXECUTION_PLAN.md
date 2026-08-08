@@ -658,6 +658,46 @@ since this session's browser pane wasn't displayed for a screenshot.
 
 ---
 
+## Phase 11 — Full security audit + RLS policy consolidation ✅ DONE
+
+Requested before starting v2 work: a full vulnerability assessment "like a cyber security expert,"
+with findings and remediations written up separately. Full report: [docs/security-audit.md](docs/security-audit.md).
+Summary (see the report for complete detail, evidence, and every finding):
+
+- **Dependency scan** (`npm audit`, `npm outdated`): 6 high-severity advisories, all resolved by
+  bumping `next` 16.2.10 → 16.3.0 (recommended, not applied — a version bump felt worth confirming
+  with you first even though it's non-major).
+- **Critical, live, exploitable finding — fixed same day**: any member account could self-elevate
+  to admin via a direct `supabase.from('profiles').update({role:'admin'})` call, proven with a
+  throwaway PoC script against the real production database (then reverted). RLS restricted which
+  *row* a user could touch but not which *columns* — closed with a `BEFORE UPDATE` trigger.
+- **User then asked for a live `pg_policies` export**, which revealed the real scope was much
+  bigger: 20+ policies live on the database were never tracked in `supabase_schema.sql`, including
+  several dangerous `USING(true) WITH CHECK(true)` policies sitting beside properly-scoped ones on
+  `tickets`, `oem_cases`, `roster_assignments`, and `shift_requests` — silently neutralizing the
+  careful ones next to them (Postgres OR's permissive RLS policies together). `profiles` alone had
+  8 overlapping/redundant policies from past migrations. Two helper functions (`is_admin()`,
+  `is_active_user()`) were already relied on live but undocumented anywhere.
+- **Fixed**: a new "0. RLS Cleanup" section in `supabase_schema.sql` removes every dangerous/
+  redundant live policy by exact name and rebuilds one clean, minimal, documented policy set per
+  table; `is_admin()`/`is_active_user()` are now tracked and used consistently; `oem_cases` gained
+  a `created_by` ownership column (with a best-effort backfill); `tasks`/`tickets`/`personal_vault`
+  writes now also require an active account at the database layer, not just client-side.
+- Also fixed: weak password policy (RPCs accepted 1-character passwords server-side — raised to 8
+  chars everywhere), missing security headers (added CSP/HSTS/X-Frame-Options/etc. in
+  `next.config.ts`, verified live), and a stored-XSS path via `javascript:` URIs in the Password
+  Vault's "Secure Link" field.
+- Full ADR: `docs/decisions.md` ADR-023.
+
+**Verified**: `npx tsc --noEmit` passes clean. Application-layer fixes (headers, password length,
+XSS) verified against a live dev server session. The SQL changes could not be similarly live-tested
+— this app has never held Service Role/DDL rights (ADR-008) — so they were instead verified by a
+careful manual trace of every new policy against the app's actual query patterns in
+`nestor-context.tsx`. **Action needed from you**: re-run `supabase_schema.sql` — nothing in this
+phase takes effect until then. See `docs/security-audit.md` §4 for the full follow-up list.
+
+---
+
 ## Product decisions (resolved)
 
 - **Roster membership**: derived entirely from User Management (active profiles) — no separate

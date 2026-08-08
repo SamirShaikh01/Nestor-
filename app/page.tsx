@@ -26,8 +26,8 @@ function ChangePasswordView({ onComplete }: { onComplete: () => void }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 6) {
-      setErrorMsg("Password must be at least 6 characters long.");
+    if (newPassword.length < 8) {
+      setErrorMsg("Password must be at least 8 characters long.");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -97,7 +97,7 @@ function ChangePasswordView({ onComplete }: { onComplete: () => void }) {
             <input
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="New Password (min 6 chars)"
@@ -110,7 +110,7 @@ function ChangePasswordView({ onComplete }: { onComplete: () => void }) {
             <input
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm New Password"

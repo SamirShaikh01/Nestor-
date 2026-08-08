@@ -371,6 +371,15 @@ export function PasswordVaultModule() {
   const handleSubmitChangeRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requestTarget || (!requestNewValue.trim() && !requestSecureUrl.trim()) || !requestReason.trim()) return;
+    // A malicious "secure link" like javascript:alert(1) would otherwise sit
+    // waiting as a clickable <a href> in the admin's Requests queue — reject
+    // any scheme but http(s) here so nothing unsafe ever gets encrypted and
+    // stored in the first place.
+    const trimmedUrl = requestSecureUrl.trim();
+    if (trimmedUrl && !/^https?:\/\//i.test(trimmedUrl)) {
+      alert("Secure Link must be a valid http:// or https:// URL.");
+      return;
+    }
     setIsSubmittingRequest(true);
     try {
       const ok = await submitVaultChangeRequest(
@@ -1114,14 +1123,23 @@ export function PasswordVaultModule() {
                       {r.secureUrl && (
                         <div className="rounded-input border p-2.5 dark:border-white/5 dark:bg-[#090e1a] bg-white border-slate-200">
                           <span className="text-[10px] font-bold uppercase text-text-soft block">Secure Link</span>
-                          <a
-                            href={r.secureUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs font-mono font-semibold text-accent-cyan hover:underline block break-all"
-                          >
-                            {r.secureUrl}
-                          </a>
+                          {/* Defense in depth: submission already rejects non-http(s)
+                              schemes, but never render an unsafe href (e.g. javascript:)
+                              even if an old/malformed record somehow exists. */}
+                          {/^https?:\/\//i.test(r.secureUrl) ? (
+                            <a
+                              href={r.secureUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-mono font-semibold text-accent-cyan hover:underline block break-all"
+                            >
+                              {r.secureUrl}
+                            </a>
+                          ) : (
+                            <span className="text-xs font-mono text-danger block break-all" title="Blocked: not a valid http(s) link">
+                              {r.secureUrl}
+                            </span>
+                          )}
                         </div>
                       )}
                       {r.reason && (
