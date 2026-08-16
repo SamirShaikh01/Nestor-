@@ -558,3 +558,43 @@ Supabase session (via the bearer token) before calling Gemini, so the (real, per
 endpoint isn't reachable by anyone who isn't a signed-in Nestor user. **Action needed from you**:
 add `GEMINI_API_KEY` to Vercel's environment variables (and `.env.local` for local dev) — get a
 free key from https://aistudio.google.com/apikey.
+
+---
+
+## ADR-026 — Fixed: logging work on a ticket was overwriting its creation date
+
+**Date**: 2026-08-17
+**Decision**: `tickets.date` (the field every date filter across Ticket Log/Reports/Dashboard
+actually uses) must be set once, at ticket creation, and never written again by the "Log My Work"
+flow. `addTicket` in `nestor-context.tsx` now branches on whether the ticket already exists
+(checked against the already-loaded, RLS-scoped `tickets` state): a brand-new ticket still upserts
+`date` as before; an existing ticket instead runs a plain `update` that omits `date` entirely,
+updating only the shared fields (status/priority/subject/details/etc.) that are legitimately
+editable from that form. `insertTicketLocal` (the offline/no-Supabase fallback) got the same
+treatment. `ticket_work_logs.date` — always a separate column on a separate table, already correct
+— continues to record the date of that specific work entry.
+**Reason**: `TicketForm`'s single "Date" input is shared by three modes (create / log-work-on-
+existing / explicit edit) and always defaults to today. The "Log My Work" path (an existing ticket
+ID typed into the same "Add Ticket" form) auto-fills every other field from the found ticket except
+`date`, which stays at today — and `handleCreateTicket` in `ticket-module.tsx` always calls
+`addTicket` regardless of whether the ticket already existed, so that unpatched `date` value got
+upserted straight over the original. Confirmed live against this project's real data: ticket
+`121212` (`created_at` 2026-08-06) has `date` stuck at `2026-08-16`, matching its most recent work
+log rather than its creation date — the exact corruption pattern, not a hypothetical.
+**Alternatives rejected**: Splitting "Log My Work" into a fully separate form/modal from ticket
+creation (cleaner long-term, but a much larger UI change than this fix warrants); auto-correcting
+`date` from `created_at` on every load (would silently overwrite a deliberately backdated ticket —
+`date` and `created_at` are allowed to legitimately differ, since a ticket can be logged for a date
+other than the moment it was entered into the system).
+**Not changed**: `updateTicket` (the explicit "Edit Ticket" modal) still writes `date` as submitted
+— that's a deliberate metadata correction by the user, not a side effect of logging work, and is
+out of scope for this fix. `tickets.created_at`/`updated_at` were never part of either write path
+and were already immutable/auto-managed; nothing needed to change there.
+**Migration**: `created_at` survives uncorrupted on every affected row (it was never in the buggy
+payload), so it — together with each ticket's earliest `ticket_work_logs.date` — is a reliable way
+to detect and re-derive the true original date for tickets corrupted before this fix. Not run
+automatically; see the detection query and rationale given directly to the user alongside this fix.
+**Impact**: `src/shared/context/nestor-context.tsx` (`addTicket`, `insertTicketLocal`),
+`src/features/ticket/components/ticket-form.tsx` (relabels the shared date input to "Work Date"
+and explains the distinction when logging work on an existing ticket — UX clarity only, no behavior
+change beyond the context fix above).

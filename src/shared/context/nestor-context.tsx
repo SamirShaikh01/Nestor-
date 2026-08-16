@@ -1379,31 +1379,58 @@ export function NestorProvider({ children }: { children: ReactNode }) {
 
   // Add Ticket — upserts shared ticket metadata, always inserts a fresh work log for current user
   const addTicket = async (ticket: Ticket) => {
+    // `date` is the ticket's creation-date reference (used by every date filter
+    // across Ticket Log/Reports/Dashboard) and must stay immutable once the
+    // ticket exists — logging work on it later must never touch it. See
+    // docs/decisions.md ADR-026. Ticket-level fields below are safe to update
+    // on every "Log My Work" submission since there is exactly one canonical
+    // row per ticket id (enforced by the `tickets.id` primary key) — `date`
+    // is the one deliberate exception.
+    const isExistingTicket = tickets.some((t) => t.id === ticket.id);
+    const sharedFieldsPayload = {
+      customer_id: ticket.customerId,
+      customer_name: ticket.customerName,
+      subject: ticket.subject,
+      details: ticket.details,
+      priority: ticket.priority,
+      status: ticket.status,
+      product: ticket.product,
+      raised_by: ticket.raisedBy,
+      my_work: ticket.myWork,
+      my_note: ticket.myNote || "",
+      comments: ticket.comments,
+    };
+
     if (isSupabaseConfigured && supabase && user) {
       try {
-        // UPSERT ticket metadata (no duplicate key error if ticket already exists)
-        const { error: upsertError } = await supabase.from("tickets").upsert(
-          {
-            id: ticket.id,
-            user_id: user.id,
-            customer_id: ticket.customerId,
-            customer_name: ticket.customerName,
-            subject: ticket.subject,
-            details: ticket.details,
-            priority: ticket.priority,
-            status: ticket.status,
-            product: ticket.product,
-            raised_by: ticket.raisedBy,
-            date: ticket.date,
-            my_work: ticket.myWork,
-            my_note: ticket.myNote || "",
-            comments: ticket.comments,
-          },
-          { onConflict: "id, user_id" }
-        );
-        if (upsertError) throw upsertError;
+        if (isExistingTicket) {
+          // Existing ticket: update the shared fields only. Deliberately
+          // omits `date` so this can never reset the original creation date.
+          const { error: updateError } = await supabase
+            .from("tickets")
+            .update(sharedFieldsPayload)
+            .eq("id", ticket.id);
+          if (updateError) throw updateError;
+        } else {
+          // Brand-new ticket: `date` is set once, here, and never written
+          // again by this function. Upsert (not insert) to stay idempotent
+          // against an accidental double-submit of the create form.
+          const { error: upsertError } = await supabase.from("tickets").upsert(
+            {
+              id: ticket.id,
+              user_id: user.id,
+              date: ticket.date,
+              ...sharedFieldsPayload,
+            },
+            { onConflict: "id, user_id" }
+          );
+          if (upsertError) throw upsertError;
+        }
 
-        // Always insert a new work log entry for the current user (if they did any work)
+        // Always insert a new work log entry for the current user (if they did any work).
+        // This uses ticket.date as the *work log's* date — the date this specific
+        // work entry happened — which is a separate concept from the ticket's
+        // own (now-untouched) creation date above.
         if (ticket.myWork || ticket.myNote) {
           const { data: logData, error: logError } = await supabase
             .from("ticket_work_logs")
@@ -1433,9 +1460,12 @@ export function NestorProvider({ children }: { children: ReactNode }) {
             setTickets((prev) => {
               const exists = prev.find((t) => t.id === ticket.id);
               if (exists) {
+                // Preserve the existing ticket's own `date` — never adopt the
+                // submitted value, which is this work entry's date, not the
+                // ticket's creation date.
                 return prev.map((t) =>
                   t.id === ticket.id
-                    ? { ...t, ...ticket, workLogs: [newLog, ...(t.workLogs || [])], myWork: ticket.myWork, myNote: ticket.myNote }
+                    ? { ...t, ...ticket, date: t.date, workLogs: [newLog, ...(t.workLogs || [])], myWork: ticket.myWork, myNote: ticket.myNote }
                     : t
                 );
               }
@@ -1448,7 +1478,7 @@ export function NestorProvider({ children }: { children: ReactNode }) {
         // No work logged — just add/update ticket in state
         setTickets((prev) => {
           const exists = prev.find((t) => t.id === ticket.id);
-          if (exists) return prev.map((t) => (t.id === ticket.id ? { ...t, ...ticket } : t));
+          if (exists) return prev.map((t) => (t.id === ticket.id ? { ...t, ...ticket, date: t.date } : t));
           return [ticket, ...prev];
         });
       } catch (e: any) {
@@ -1527,9 +1557,12 @@ export function NestorProvider({ children }: { children: ReactNode }) {
   };
 
   const insertTicketLocal = (ticket: Ticket) => {
-    const exists = tickets.some((t) => t.id.toLowerCase() === ticket.id.toLowerCase());
-    if (exists) {
-      updateTicketLocal(ticket);
+    const existing = tickets.find((t) => t.id.toLowerCase() === ticket.id.toLowerCase());
+    if (existing) {
+      // Logging work on an existing ticket (local/offline fallback) must
+      // never change its original creation date — only an explicit edit
+      // via updateTicket/updateTicketLocal may do that. See ADR-026.
+      updateTicketLocal({ ...ticket, date: existing.date });
     } else {
       saveTicketsLocal([ticket, ...tickets]);
     }

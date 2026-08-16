@@ -197,7 +197,11 @@ export function TicketForm({ isOpen, onClose, onSubmit, ticketToEdit }: TicketFo
                       className="mt-2 flex items-center gap-1.5 rounded-btn border border-accent-cyan/20 bg-accent-cyan/10 px-2.5 py-1.5 text-xs text-accent-cyan shadow-[0_0_15px_rgba(34,211,238,0.1)]"
                     >
                       <Info size={12.5} className="flex-shrink-0" />
-                      <span>Existing ticket found — details auto-filled. Add your work below.</span>
+                      <span>
+                        Existing ticket found (created {existingTicket.date}) — details auto-filled.
+                        The date below is for this new work entry only; the ticket&apos;s original
+                        creation date is never changed.
+                      </span>
                     </motion.div>
                   )}
                 </div>
@@ -292,7 +296,7 @@ export function TicketForm({ isOpen, onClose, onSubmit, ticketToEdit }: TicketFo
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-text-soft mb-1.5">
-                    Date *
+                    {existingTicket && !ticketToEdit ? "Work Date *" : "Date *"}
                   </label>
                   <input
                     type="date"
